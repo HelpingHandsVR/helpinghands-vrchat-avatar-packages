@@ -17,6 +17,9 @@
     },
     "com.poiyomi.toon": {
       "version": "9.3.64"
+    },
+    "com.vrcfury.vrcfury": {
+      "version": "1.1341.0"
     }
   },
   "locked": {
@@ -50,6 +53,10 @@
     },
     "com.poiyomi.toon": {
       "version": "9.3.64",
+      "dependencies": {}
+    },
+    "com.vrcfury.vrcfury": {
+      "version": "1.1341.0",
       "dependencies": {}
     }
   }
