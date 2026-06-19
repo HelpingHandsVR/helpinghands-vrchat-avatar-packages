@@ -14,6 +14,9 @@
     },
     "jp.lilxyzw.liltoon": {
       "version": "2.3.3"
+    },
+    "com.poiyomi.toon": {
+      "version": "9.3.64"
     }
   },
   "locked": {
@@ -43,6 +46,10 @@
     },
     "jp.lilxyzw.liltoon": {
       "version": "2.3.3",
+      "dependencies": {}
+    },
+    "com.poiyomi.toon": {
+      "version": "9.3.64",
       "dependencies": {}
     }
   }
