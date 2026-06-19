@@ -185,6 +185,12 @@
         "com.unity.nuget.newtonsoft-json": "3.0.2"
       }
     },
+    "jp.lilxyzw.liltoon": {
+      "version": "file:jp.lilxyzw.liltoon",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "nadena.dev.modular-avatar": {
       "version": "file:nadena.dev.modular-avatar",
       "depth": 0,
