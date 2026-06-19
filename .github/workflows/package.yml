@@ -1,0 +1,40 @@
+name: Build UPM .zip
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  release-upm:
+    runs-on: ubuntu-latest
+    environment: publish
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/versions/v')
+    permissions:
+      # Required to create release
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Publish UPM package as release artifact on GitHub
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -x
+          export tag_name="${GITHUB_REF##*/tags/}"
+
+          # Create distribution
+          mkdir -p Temp
+          root_directory=$(pwd)
+          pushd Assets/HelpingHands/AvatarAccessories
+          zip "${root_directory}/Temp/io.github.helpinghandsvr.helpinghands-vrchat-avatar-accessories.zip" -r .
+          popd
+
+          tag_name="${GITHUB_REF##*/tags/}"
+          gh release create "${tag_name}" --draft --title "${tag_name}" --notes-file ./.github/workflows/RELEASE_SUMMARY.md "Temp/io.github.helpinghandsvr.helpinghands-vrchat-avatar-accessories.zip"
+          gh release edit "${tag_name}" --draft=false
