@@ -8,6 +8,9 @@
     },
     "com.vrchat.core.vpm-resolver": {
       "version": "0.1.29"
+    },
+    "nadena.dev.modular-avatar": {
+      "version": "1.17.1"
     }
   },
   "locked": {
@@ -23,6 +26,16 @@
     },
     "com.vrchat.core.vpm-resolver": {
       "version": "0.1.29",
+      "dependencies": {}
+    },
+    "nadena.dev.modular-avatar": {
+      "version": "1.17.1",
+      "dependencies": {
+        "nadena.dev.ndmf": ">=1.11.0 <2.0.0-a"
+      }
+    },
+    "nadena.dev.ndmf": {
+      "version": "1.13.1",
       "dependencies": {}
     }
   }
