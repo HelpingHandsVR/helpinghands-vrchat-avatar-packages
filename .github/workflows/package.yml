@@ -2,6 +2,8 @@ name: Build UPM .zip
 
 on:
   push:
+    tags:
+      - versions/v*
   workflow_dispatch:
 
 jobs:
