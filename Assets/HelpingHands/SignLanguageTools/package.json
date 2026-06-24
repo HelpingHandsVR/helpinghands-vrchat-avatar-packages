@@ -1,0 +1,18 @@
+{
+  "name": "io.github.helpinghandsvr.helpinghands-vrchat-sign-language-tools",
+  "displayName": "Helping Hands - Sign Language Tools",
+  "version": "2026.6.2",
+  "description": "Sign Language animations and tools for VRChat avatars",
+  "author": {
+    "name": "Helping Hands",
+    "url": "https://github.com/HelpingHandsVR"
+  },
+  "gitDependencies": {},
+  "vpmDependencies": {},
+  "legacyFolders": {},
+  "legacyFiles": {},
+  "legacyPackages": [],
+  "hideInEditor": false,
+  "license": "MIT",
+  "unity": "2019.4"
+}
