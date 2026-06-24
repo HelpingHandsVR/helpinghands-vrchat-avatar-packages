@@ -22,6 +22,18 @@ jobs:
           fetch-depth: 0
           submodules: true
 
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Run packaging
+        shell: bash
+        env:
+          GHA_OUTPUT_GROUPS: "1"
+        run: |
+          python DevOps/package_distribution.py
+
       - name: Publish UPM package as release artifact on GitHub
         shell: bash
         env:
@@ -30,13 +42,11 @@ jobs:
           set -x
           export tag_name="${GITHUB_REF##*/tags/}"
 
-          # Create distribution
-          mkdir -p Temp
-          root_directory=$(pwd)
-          pushd Assets/HelpingHands/AvatarAccessories
-          zip "${root_directory}/Temp/io.github.helpinghandsvr.helpinghands-vrchat-avatar-accessories.zip" -r .
-          popd
+          assets=()
+          for asset in ./Builds/*.{zip,unitypackage}; do
+            assets+=("$asset")
+          done
 
           tag_name="${GITHUB_REF##*/tags/}"
-          gh release create "${tag_name}" --draft --title "${tag_name}" --notes-file ./.github/workflows/RELEASE_SUMMARY.md "Temp/io.github.helpinghandsvr.helpinghands-vrchat-avatar-accessories.zip"
+          gh release create "${tag_name}" --draft --title "${tag_name}" --notes-file ./Builds/RELEASE_SUMMARY.md "${assets[@]}"
           gh release edit "${tag_name}" --draft=false
