@@ -223,6 +223,29 @@ for (upm_package_manifest_file, upm_package_manifest) in UPM_PACKAGES:
     files_gitignored: int = file_count_before - len(upm_files)
     folders_gitignored: int = folder_count_before - len(upm_folders)
 
+    # Manual exclusion
+    file_count_before = len(upm_files)
+    folder_count_before = len(upm_folders)
+
+    def exclusion_criteria(path: pathlib.Path) -> bool:
+        if "ExcludedFromPackage" in path.parts:
+            return True
+
+        return False
+
+    upm_files = [
+        file for file in upm_files
+        if not exclusion_criteria(upm_package_root / file[0])
+    ]
+
+    upm_folders = [
+        folder for folder in upm_folders
+        if not exclusion_criteria(upm_package_root / folder[0])
+    ]
+
+    files_excluded: int = file_count_before - len(upm_files)
+    folders_excluded: int = folder_count_before - len(upm_folders)
+
     # Filtering complete, now list what is being included
     entities_to_print = [
         (True, file[0]) for file in upm_files
@@ -235,8 +258,8 @@ for (upm_package_manifest_file, upm_package_manifest) in UPM_PACKAGES:
         blank_space = len(entity[1].parent.as_posix())
         print("  " + (" " * blank_space) + entity[1].name + ("" if entity[0] else "/"))
 
-    print(f"{files_considered} files considered, {len(upm_files)} files included, {files_lacking_meta} no meta, {files_lacking_guid} no guid, {files_gitignored} gitignored")
-    print(f"{folders_considered} folders considered, {len(upm_folders)} folders included, {folders_lacking_meta} no meta, {folders_lacking_guid} no guid, {folders_gitignored} gitignored")
+    print(f"{files_considered} files considered, {len(upm_files)} files included, {files_lacking_meta} no meta, {files_lacking_guid} no guid, {files_gitignored} gitignored, {files_excluded} excluded")
+    print(f"{folders_considered} folders considered, {len(upm_folders)} folders included, {folders_lacking_meta} no meta, {folders_lacking_guid} no guid, {folders_gitignored} gitignored, {folders_excluded} excluded")
 
     # Create output artifacts
     zip_output = BUILDS_FOLDER / f"{upm_package_manifest['name']}.v{upm_package_manifest['version']}.zip"
