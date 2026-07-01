@@ -188,6 +188,12 @@ public class MecanimAvatarDebug : MonoBehaviour
                         EditorGUILayout.LabelField($"[{i}] <b>{HumanTrait.BoneName[i]}</b>", mixedStyle);
                         EditorGUILayout.EndHorizontal();
 
+                        var x_muscle = HumanTrait.MuscleFromBone(i, 0);
+                        var y_muscle = HumanTrait.MuscleFromBone(i, 1);
+                        var z_muscle = HumanTrait.MuscleFromBone(i, 2);
+                        EditorGUILayout.LabelField($"<b>X Muscle:</b>  {x_muscle}{(x_muscle == -1 ? "" : " (" + HumanTrait.MuscleName[x_muscle] + ")")}", mixedStyle);
+                        EditorGUILayout.LabelField($"<b>Y Muscle:</b>  {y_muscle}{(y_muscle == -1 ? "" : " (" + HumanTrait.MuscleName[y_muscle] + ")")}", mixedStyle);
+                        EditorGUILayout.LabelField($"<b>Z Muscle:</b>  {z_muscle}{(z_muscle == -1 ? "" : " (" + HumanTrait.MuscleName[z_muscle] + ")")}", mixedStyle);
                         ShowBoneInfo(boneMap, skeletonFullMap, i);
 
                         EditorGUILayout.EndVertical();
@@ -211,6 +217,8 @@ public class MecanimAvatarDebug : MonoBehaviour
                         EditorGUILayout.LabelField($"<b>Muscle handle name:</b>  {muscleHandles[i].name}", mixedStyle);
                         EditorGUILayout.LabelField($"<b>Muscle handle part:</b>  {muscleHandles[i].humanPartDof}", mixedStyle);
                         EditorGUILayout.LabelField($"<b>Muscle handle DoF:</b>  {muscleHandles[i].dof}", mixedStyle);
+
+                        EditorGUILayout.LabelField($"<b>Muscle default range:</b>  {HumanTrait.GetMuscleDefaultMin(i)}-{HumanTrait.GetMuscleDefaultMax(i)}", mixedStyle);
 
                         var associatedBone = HumanTrait.BoneFromMuscle(i);
 
