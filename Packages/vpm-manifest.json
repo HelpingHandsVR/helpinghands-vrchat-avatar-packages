@@ -20,6 +20,9 @@
     },
     "jp.lilxyzw.liltoon": {
       "version": "2.3.4"
+    },
+    "nadena.dev.ndmf": {
+      "version": "1.14.0"
     }
   },
   "locked": {
@@ -43,10 +46,6 @@
         "nadena.dev.ndmf": ">=1.11.0 <2.0.0-a"
       }
     },
-    "nadena.dev.ndmf": {
-      "version": "1.13.1",
-      "dependencies": {}
-    },
     "com.poiyomi.toon": {
       "version": "9.3.64",
       "dependencies": {}
@@ -57,6 +56,10 @@
     },
     "jp.lilxyzw.liltoon": {
       "version": "2.3.4",
+      "dependencies": {}
+    },
+    "nadena.dev.ndmf": {
+      "version": "1.14.0",
       "dependencies": {}
     }
   }
