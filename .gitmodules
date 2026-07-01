@@ -1,0 +1,3 @@
+[submodule "Assets/ShaderMotion"]
+	path = Assets/ShaderMotion
+	url = https://gitlab.com/lox9973/ShaderMotion.git
