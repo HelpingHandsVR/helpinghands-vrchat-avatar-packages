@@ -23,6 +23,18 @@
     },
     "nadena.dev.ndmf": {
       "version": "1.14.0"
+    },
+    "lyuma.av3emulator": {
+      "version": "3.4.13"
+    },
+    "vrchat.blackstartx.gesture-manager": {
+      "version": "3.9.8"
+    },
+    "dev.vrlabs.av3manager": {
+      "version": "2.1.2"
+    },
+    "vrchat.jordo.easyquestswitch": {
+      "version": "1.4.0"
     }
   },
   "locked": {
@@ -60,6 +72,28 @@
     },
     "nadena.dev.ndmf": {
       "version": "1.14.0",
+      "dependencies": {}
+    },
+    "lyuma.av3emulator": {
+      "version": "3.4.13",
+      "dependencies": {
+        "com.vrchat.avatars": "^3.1.0"
+      }
+    },
+    "vrchat.blackstartx.gesture-manager": {
+      "version": "3.9.8",
+      "dependencies": {
+        "com.vrchat.avatars": ">=3.5.2 < 3.11.X"
+      }
+    },
+    "dev.vrlabs.av3manager": {
+      "version": "2.1.2",
+      "dependencies": {
+        "com.vrchat.avatars": "3.2 - 3.10"
+      }
+    },
+    "vrchat.jordo.easyquestswitch": {
+      "version": "1.4.0",
       "dependencies": {}
     }
   }
