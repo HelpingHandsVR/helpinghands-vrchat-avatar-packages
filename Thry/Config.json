@@ -22,7 +22,7 @@
     "autoSetAnchorOverride": true,
     "humanBoneAnchor": 8,
     "anchorOverrideObjectName": "AutoAnchorObject",
-    "autoSetAnchorAskedOnce": false,
+    "autoSetAnchorAskedOnce": true,
     "enableDeveloperMode": false,
     "disableUnlockedShaderStrippingOnBuild": false,
     "forceAsyncCompilationPreview": true,
