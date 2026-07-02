@@ -329,7 +329,38 @@ public class MecanimAvatarDebug : MonoBehaviour
 
                         EditorGUILayout.LabelField($"<b>Muscle handle name:</b>  {muscleHandles[i].name}", mixedStyle);
                         EditorGUILayout.LabelField($"<b>Muscle handle part:</b>  {muscleHandles[i].humanPartDof}", mixedStyle);
-                        EditorGUILayout.LabelField($"<b>Muscle handle DoF:</b>  {muscleHandles[i].dof}", mixedStyle);
+                        switch (muscleHandles[i].humanPartDof)
+                        {
+                            case HumanPartDof.Body:
+                                EditorGUILayout.LabelField($"<b>Muscle handle DoF:</b>  {muscleHandles[i].dof} ({(BodyDof)muscleHandles[i].dof})", mixedStyle);
+                                break;
+                            case HumanPartDof.Head:
+                                EditorGUILayout.LabelField($"<b>Muscle handle DoF:</b>  {muscleHandles[i].dof} ({(HeadDof)muscleHandles[i].dof})", mixedStyle);
+                                break;
+                            case HumanPartDof.LeftLeg:
+                            case HumanPartDof.RightLeg:
+                                EditorGUILayout.LabelField($"<b>Muscle handle DoF:</b>  {muscleHandles[i].dof} ({(LegDof)muscleHandles[i].dof})", mixedStyle);
+                                break;
+                            case HumanPartDof.LeftArm:
+                            case HumanPartDof.RightArm:
+                                EditorGUILayout.LabelField($"<b>Muscle handle DoF:</b>  {muscleHandles[i].dof} ({(ArmDof)muscleHandles[i].dof})", mixedStyle);
+                                break;
+                            case HumanPartDof.LeftThumb:
+                            case HumanPartDof.LeftIndex:
+                            case HumanPartDof.LeftMiddle:
+                            case HumanPartDof.LeftRing:
+                            case HumanPartDof.LeftLittle:
+                            case HumanPartDof.RightThumb:
+                            case HumanPartDof.RightIndex:
+                            case HumanPartDof.RightMiddle:
+                            case HumanPartDof.RightRing:
+                            case HumanPartDof.RightLittle:
+                                EditorGUILayout.LabelField($"<b>Muscle handle DoF:</b>  {muscleHandles[i].dof} ({(FingerDof)muscleHandles[i].dof})", mixedStyle);
+                                break;
+                            default:
+                                EditorGUILayout.LabelField($"<b>Muscle handle DoF:</b>  {muscleHandles[i].dof}", mixedStyle);
+                                break;
+                        }
 
                         EditorGUILayout.LabelField($"<b>Muscle default range:</b>  {HumanTrait.GetMuscleDefaultMin(i)}-{HumanTrait.GetMuscleDefaultMax(i)}", mixedStyle);
 
@@ -359,6 +390,7 @@ public class MecanimAvatarDebug : MonoBehaviour
                 };
 
                 EditorGUILayout.LabelField($"<b>Required?</b>:  {HumanTrait.RequiredBone(index)}", mixedStyle);
+                EditorGUILayout.LabelField($"<b>Default hierarchy mass:</b>  {HumanTrait.GetBoneDefaultHierarchyMass(index)}", mixedStyle);
 
                 if (boneMap.TryGetValue(HumanTrait.BoneName[index], out HumanBone boneMapped))
                 {
