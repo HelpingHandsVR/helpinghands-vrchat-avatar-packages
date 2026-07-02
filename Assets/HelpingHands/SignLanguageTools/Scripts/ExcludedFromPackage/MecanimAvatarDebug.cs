@@ -6,6 +6,8 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.Animations;
 using Unity.Collections;
+using System;
+
 
 
 #if UNITY_EDITOR
@@ -18,9 +20,13 @@ public class MecanimAvatarDebug : MonoBehaviour
 {
     public Animator target;
 
+    [NonSerialized]
     public bool genericMecanimBones_Show = false;
+    [NonSerialized]
     public Vector2 genericMecanimBones_Scroll;
+    [NonSerialized]
     public bool genericMecanimMuscles_Show = false;
+    [NonSerialized]
     public Vector2 genericMecanimMuscles_Scroll;
 
     public bool lineSkeleton_Gizmo = true;

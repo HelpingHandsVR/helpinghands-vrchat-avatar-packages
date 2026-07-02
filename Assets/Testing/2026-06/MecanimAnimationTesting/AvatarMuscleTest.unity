@@ -189,7 +189,7 @@ PrefabInstance:
     - target: {fileID: 5866666021909216657, guid: ec2b61190ac43a541ad1af758ff833ca,
         type: 3}
       propertyPath: m_Controller
-      value: 
+      value:
       objectReference: {fileID: 9100000, guid: ad162651f3324904ab240ef2b11d72e2, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -216,13 +216,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 52ae12cff0073f94c913253f8b98061a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   target: {fileID: 206130247}
-  genericMecanimBones_Show: 1
-  genericMecanimBones_Scroll: {x: 0, y: 7140}
-  genericMecanimMuscles_Show: 0
-  genericMecanimMuscles_Scroll: {x: 0, y: 5580}
   lineSkeleton_Gizmo: 1
   poseSkeleton_Gizmo: 0
   poseSkeleton_Value: 0
@@ -353,8 +349,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c432a5ed00a04259997c23712bcf2186, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
 --- !u!4 &1079064853
 Transform:
   m_ObjectHideFlags: 1
@@ -476,7 +472,7 @@ PrefabInstance:
     - target: {fileID: 5866666021909216657, guid: f81e8172c337a714894d6fdbd0900d8d,
         type: 3}
       propertyPath: m_Controller
-      value: 
+      value:
       objectReference: {fileID: 9100000, guid: ad162651f3324904ab240ef2b11d72e2, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -525,13 +521,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: -1427037861, guid: 4ecd63eff847044b68db9453ce219299, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   launchedFromSDKPipeline: 0
   completedSDKPipeline: 0
-  blueprintId: 
+  blueprintId:
   contentType: 0
-  assetBundleUnityVersion: 
+  assetBundleUnityVersion:
   fallbackStatus: 3
 --- !u!114 &1112435830
 MonoBehaviour:
@@ -543,9 +539,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 542108242, guid: 67cc4cb7839cd3741b63733d5adf0442, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  Name: 
+  m_Name:
+  m_EditorClassIdentifier:
+  Name:
   ViewPosition: {x: 0, y: 1.7407241, z: 0.11814903}
   Animations: 0
   ScaleIPD: 1
@@ -571,7 +567,7 @@ MonoBehaviour:
   - v_ih
   - v_oh
   - v_ou
-  unityVersion: 
+  unityVersion:
   portraitCameraPositionOffset: {x: 0, y: 0, z: 0}
   portraitCameraRotationOffset: {x: 0, y: 1, z: 0, w: -0.00000004371139}
   networkIDs: []
@@ -873,7 +869,7 @@ PrefabInstance:
     - target: {fileID: 5866666021909216657, guid: ec2b61190ac43a541ad1af758ff833ca,
         type: 3}
       propertyPath: m_Controller
-      value: 
+      value:
       objectReference: {fileID: 9100000, guid: ad162651f3324904ab240ef2b11d72e2, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
