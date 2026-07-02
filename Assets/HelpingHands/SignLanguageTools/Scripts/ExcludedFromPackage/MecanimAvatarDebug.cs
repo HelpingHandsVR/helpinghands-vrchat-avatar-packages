@@ -107,7 +107,9 @@ public class MecanimAvatarDebug : MonoBehaviour
 
     static Dictionary<string, (string[] fullName, string parent, Matrix4x4 local, Matrix4x4 transformation)> CreateSkeletonMapFromPose(Avatar avatar, HumanPose pose)
     {
-        var paths = avatar.humanDescription.skeleton.Select((b) => b.name).ToArray();
+        // ugly!
+        var originalSkeletonMap = CreateSkeletonMap(avatar.humanDescription);
+        var paths = avatar.humanDescription.skeleton.Select((b) => string.Join("/", originalSkeletonMap[b.name].fullName.Skip(1))).ToArray();
 
         HumanPoseHandler humanPoseHandler = new(avatar, paths);
         NativeArray<float> avatarPose = new(paths.Length * 7, Allocator.Persistent);
@@ -127,6 +129,7 @@ public class MecanimAvatarDebug : MonoBehaviour
 
         humanPoseHandler.SetInternalAvatarPose(avatarPose);
         humanPoseHandler.SetInternalHumanPose(ref pose);
+        humanPoseHandler.GetInternalAvatarPose(avatarPose);
 
         var skeletonBoneParentField = typeof(SkeletonBone).GetField("parentName", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
         var skeletonMap = avatar.humanDescription.skeleton.Select((x, i) => new { Item = x, Index = i }).ToDictionary(
@@ -223,7 +226,7 @@ public class MecanimAvatarDebug : MonoBehaviour
 
                 if (!string.IsNullOrWhiteSpace(pair.Value.parent))
                 {
-                    var positionOfParent = (target.transform.localToWorldMatrix * skeletonFullMap[pair.Value.parent].transformation).MultiplyPoint(Vector3.zero);
+                    var positionOfParent = (target.transform.localToWorldMatrix * skeletonMap2[pair.Value.parent].transformation).MultiplyPoint(Vector3.zero);
 
                     Gizmos.DrawLine(
                         positionOfParent,

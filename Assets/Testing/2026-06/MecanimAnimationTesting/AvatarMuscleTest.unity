@@ -219,6 +219,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 206130247}
+  genericMecanimBones_Show: 1
+  genericMecanimBones_Scroll: {x: 0, y: 7140}
+  genericMecanimMuscles_Show: 0
+  genericMecanimMuscles_Scroll: {x: 0, y: 5580}
+  lineSkeleton_Gizmo: 1
+  poseSkeleton_Gizmo: 0
+  poseSkeleton_Value: 0
 --- !u!95 &206130247 stripped
 Animator:
   m_CorrespondingSourceObject: {fileID: 5866666021909216657, guid: ec2b61190ac43a541ad1af758ff833ca,
