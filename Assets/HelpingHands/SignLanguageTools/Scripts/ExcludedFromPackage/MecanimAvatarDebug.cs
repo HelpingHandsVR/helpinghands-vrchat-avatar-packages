@@ -307,7 +307,7 @@ public class MecanimAvatarDebug : MonoBehaviour
                         EditorGUILayout.LabelField($"<b>X Muscle:</b>  {x_muscle}{(x_muscle == -1 ? "" : " (" + HumanTrait.MuscleName[x_muscle] + ")")}", mixedStyle);
                         EditorGUILayout.LabelField($"<b>Y Muscle:</b>  {y_muscle}{(y_muscle == -1 ? "" : " (" + HumanTrait.MuscleName[y_muscle] + ")")}", mixedStyle);
                         EditorGUILayout.LabelField($"<b>Z Muscle:</b>  {z_muscle}{(z_muscle == -1 ? "" : " (" + HumanTrait.MuscleName[z_muscle] + ")")}", mixedStyle);
-                        ShowBoneInfo(boneMap, skeletonFullMap, i);
+                        ShowBoneInfo(avatar, boneMap, skeletonFullMap, i);
 
                         EditorGUILayout.EndVertical();
                     }
@@ -369,7 +369,7 @@ public class MecanimAvatarDebug : MonoBehaviour
                         EditorGUILayout.LabelField($"<b>Bone index:</b>  {associatedBone}", mixedStyle);
                         EditorGUILayout.LabelField($"<b>Bone name:</b>  {HumanTrait.BoneName[associatedBone]}", mixedStyle);
 
-                        ShowBoneInfo(boneMap, skeletonFullMap, associatedBone);
+                        ShowBoneInfo(avatar, boneMap, skeletonFullMap, associatedBone);
 
                         EditorGUILayout.EndVertical();
                     }
@@ -379,6 +379,7 @@ public class MecanimAvatarDebug : MonoBehaviour
             }
 
             public void ShowBoneInfo(
+                Avatar avatar,
                 Dictionary<string, HumanBone> boneMap,
                 Dictionary<string, (string[] fullName, string parent, Matrix4x4 local, Matrix4x4 transformation)> skeletonFullMap,
                 int index
@@ -389,7 +390,21 @@ public class MecanimAvatarDebug : MonoBehaviour
                     richText = true
                 };
 
+                var method_GetPreRotation = typeof(Avatar).GetMethod("GetPreRotation", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+	            var method_GetPostRotation = typeof(Avatar).GetMethod("GetPostRotation", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+	            var method_GetLimitSign = typeof(Avatar).GetMethod("GetLimitSign", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+                EditorGUILayout.LabelField($"<b>Human Body Bones</b>:  {(HumanBodyBones)index}", mixedStyle);
                 EditorGUILayout.LabelField($"<b>Required?</b>:  {HumanTrait.RequiredBone(index)}", mixedStyle);
+
+                var preRotation = (Quaternion)method_GetPreRotation.Invoke(avatar, new object[]{ (HumanBodyBones)index });
+                var postRotation = (Quaternion)method_GetPostRotation.Invoke(avatar, new object[]{ (HumanBodyBones)index });
+                var limitSign = (Vector3)method_GetLimitSign.Invoke(avatar, new object[]{ (HumanBodyBones)index });
+
+                EditorGUILayout.LabelField($"<b>Pre rotation</b>:  {preRotation}", mixedStyle);
+                EditorGUILayout.LabelField($"<b>Post rotation</b>:  {postRotation}", mixedStyle);
+                EditorGUILayout.LabelField($"<b>Limit sign</b>:  {limitSign}", mixedStyle);
+
                 EditorGUILayout.LabelField($"<b>Default hierarchy mass:</b>  {HumanTrait.GetBoneDefaultHierarchyMass(index)}", mixedStyle);
 
                 if (boneMap.TryGetValue(HumanTrait.BoneName[index], out HumanBone boneMapped))
