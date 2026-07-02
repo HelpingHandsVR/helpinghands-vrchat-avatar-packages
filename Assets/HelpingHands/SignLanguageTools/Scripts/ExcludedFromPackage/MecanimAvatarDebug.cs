@@ -29,9 +29,27 @@ public class MecanimAvatarDebug : MonoBehaviour
     [NonSerialized]
     public Vector2 genericMecanimMuscles_Scroll;
 
-    public bool lineSkeleton_Gizmo = true;
+    [NonSerialized]
+    public bool lineSkeleton_Gizmo = false;
+    [NonSerialized]
+    public Vector2 lineSkeleton_Scroll;
+    [NonSerialized]
+    public Color lineSkeleton_Color = Color.blue;
+    [NonSerialized]
+    public float lineSkeleton_BallSize = 0.0025f;
+
+    [NonSerialized]
     public bool poseSkeleton_Gizmo = false;
-    public float poseSkeleton_Value = 0.0f;
+    [NonSerialized]
+    public Vector2 poseSkeleton_Scroll;
+    [NonSerialized]
+    public Color poseSkeleton_Color = Color.yellow;
+    [NonSerialized]
+    public float poseSkeleton_BallSize = 0.0025f;
+    [NonSerialized]
+    public float poseSkeleton_GlobalMuscleValue = 0.0f;
+    [NonSerialized]
+    public float[] poseSkeleton_MuscleValues = null;
 
 #if UNITY_EDITOR
     [MenuItem("CONTEXT/Animator/HelpingHandsVR/Debug/PrintMecanimInfo")]
@@ -197,7 +215,7 @@ public class MecanimAvatarDebug : MonoBehaviour
         if (lineSkeleton_Gizmo) {
             foreach (var pair in skeletonFullMap)
             {
-                Gizmos.color = Color.blue;
+                Gizmos.color = lineSkeleton_Color;
 
                 var positionOfThis = (target.transform.localToWorldMatrix * pair.Value.transformation).MultiplyPoint(Vector3.zero);
 
@@ -211,7 +229,7 @@ public class MecanimAvatarDebug : MonoBehaviour
                     );
                 }
 
-                Gizmos.DrawSphere(pair.Value.transformation.MultiplyPoint(Vector3.zero) + target.transform.position, 0.01f);
+                Gizmos.DrawSphere(pair.Value.transformation.MultiplyPoint(Vector3.zero) + target.transform.position, lineSkeleton_BallSize);
             }
         }
 
@@ -219,14 +237,16 @@ public class MecanimAvatarDebug : MonoBehaviour
         {
             HumanPose pose = new()
             {
-                muscles = Enumerable.Range(0, HumanTrait.MuscleCount).Select((_) => poseSkeleton_Value).ToArray()
+                muscles = poseSkeleton_MuscleValues,
+                bodyPosition = Vector3.zero,
+                bodyRotation = Quaternion.identity,
             };
 
             var skeletonMap2 = CreateSkeletonMapFromPose(avatar, pose);
 
             foreach (var pair in skeletonMap2)
             {
-                Gizmos.color = Color.yellow;
+                Gizmos.color = poseSkeleton_Color;
 
                 var positionOfThis = (target.transform.localToWorldMatrix * pair.Value.transformation).MultiplyPoint(Vector3.zero);
 
@@ -240,7 +260,7 @@ public class MecanimAvatarDebug : MonoBehaviour
                     );
                 }
 
-                Gizmos.DrawSphere(pair.Value.transformation.MultiplyPoint(Vector3.zero) + target.transform.position, 0.01f);
+                Gizmos.DrawSphere(pair.Value.transformation.MultiplyPoint(Vector3.zero) + target.transform.position, poseSkeleton_BallSize);
             }
         }
     }
@@ -376,6 +396,55 @@ public class MecanimAvatarDebug : MonoBehaviour
                         EditorGUILayout.LabelField($"<b>Bone name:</b>  {HumanTrait.BoneName[associatedBone]}", mixedStyle);
 
                         ShowBoneInfo(avatar, boneMap, skeletonFullMap, associatedBone);
+
+                        EditorGUILayout.EndVertical();
+                    }
+                    EditorGUILayout.EndScrollView();
+                    EditorGUI.indentLevel--;
+                }
+
+                EditorGUILayout.Separator();
+
+                settings.lineSkeleton_Gizmo = EditorGUILayout.Foldout(settings.lineSkeleton_Gizmo, "Show line skeleton");
+                if (settings.lineSkeleton_Gizmo) {
+                    EditorGUI.indentLevel++;
+
+                    settings.lineSkeleton_Color = EditorGUILayout.ColorField("Color", settings.lineSkeleton_Color);
+                    settings.lineSkeleton_BallSize = EditorGUILayout.FloatField("Ball size", settings.lineSkeleton_BallSize);
+
+                    EditorGUI.indentLevel--;
+                }
+
+                settings.poseSkeleton_Gizmo = EditorGUILayout.Foldout(settings.poseSkeleton_Gizmo, "Show pose skeleton");
+                if (settings.poseSkeleton_Gizmo) {
+                    EditorGUI.indentLevel++;
+                    settings.poseSkeleton_Scroll = EditorGUILayout.BeginScrollView(settings.poseSkeleton_Scroll, GUILayout.Height(400.0f));
+                    settings.poseSkeleton_Color = EditorGUILayout.ColorField("Color", settings.poseSkeleton_Color);
+                    settings.poseSkeleton_BallSize = EditorGUILayout.FloatField("Ball size", settings.poseSkeleton_BallSize);
+
+                    EditorGUILayout.BeginHorizontal();
+                    EditorGUILayout.LabelField($"<b>Global value: </b>", mixedStyle);
+                    settings.poseSkeleton_GlobalMuscleValue = EditorGUILayout.FloatField(settings.poseSkeleton_GlobalMuscleValue);
+                    if (GUILayout.Button("Apply"))
+                    {
+                        settings.poseSkeleton_MuscleValues = Enumerable.Range(0, HumanTrait.MuscleCount).Select(_ => settings.poseSkeleton_GlobalMuscleValue).ToArray();
+                    }
+                    EditorGUILayout.EndHorizontal();
+
+                    if (settings.poseSkeleton_MuscleValues == null || settings.poseSkeleton_MuscleValues.Length < HumanTrait.MuscleCount)
+                    {
+                        settings.poseSkeleton_MuscleValues = Enumerable.Range(0, HumanTrait.MuscleCount).Select(_ => settings.poseSkeleton_GlobalMuscleValue).ToArray();
+                    }
+
+                    for (int i = 0; i < HumanTrait.MuscleCount; ++i)
+                    {
+                        EditorGUILayout.BeginVertical("box");
+
+                        EditorGUILayout.BeginHorizontal("AC BoldHeader");
+                        EditorGUILayout.LabelField($"[{i}] <b>{HumanTrait.MuscleName[i]}</b>", mixedStyle);
+                        EditorGUILayout.EndHorizontal();
+
+                        settings.poseSkeleton_MuscleValues[i] = EditorGUILayout.Slider(settings.poseSkeleton_MuscleValues[i], -1.0f, 1.0f);
 
                         EditorGUILayout.EndVertical();
                     }
