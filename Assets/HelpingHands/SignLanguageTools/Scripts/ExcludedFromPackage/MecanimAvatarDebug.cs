@@ -266,7 +266,7 @@ public class MecanimAvatarDebug : MonoBehaviour
     }
 
 #if UNITY_EDITOR
-        [CustomEditor(typeof(MecanimAvatarDebug))]
+    [CustomEditor(typeof(MecanimAvatarDebug))]
     public class MecanimAvatarDebugEditor : Editor
     {
             public override void OnInspectorGUI()
@@ -301,6 +301,13 @@ public class MecanimAvatarDebug : MonoBehaviour
                 if (GUILayout.Button("Print debug info"))
                 {
                     Debug_PrintInfo(settings.target);
+                }
+
+                if (GUILayout.Button("Export human muscle definition"))
+                {
+                    string tempFilePath = System.IO.Path.GetTempFileName();
+                    System.IO.File.WriteAllText(tempFilePath, JsonUtility.ToJson(new MecanimMuscleSkinning.HumanMuscleDefinition(settings.target.avatar), true));
+                    UnityEngine.Debug.Log("Human muscle definition exported to: " + tempFilePath);
                 }
 
                 EditorGUILayout.Separator();
