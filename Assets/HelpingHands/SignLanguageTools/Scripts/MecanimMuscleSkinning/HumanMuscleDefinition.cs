@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Animations;
 
@@ -299,7 +300,85 @@ public class HumanMuscleDefinition
 #endregion
 
 #region Methods
+    public (string[] jointPaths, NativeArray<float> avatarPose) CreatePoseArrays()
+    {
+        var jointPaths = skeletonTransforms.Select(
+            (st) => string.Join("/", st.path.Skip(1))
+        ).ToArray();
 
+        NativeArray<float> avatarPose = new(jointPaths.Length * 7, Allocator.Persistent);
+
+        for (int i = 0; i < jointPaths.Length; ++i)
+        {
+            Vector3 position = skeletonTransforms[i].localPosition;
+            Quaternion rotation = skeletonTransforms[i].localRotation;
+            avatarPose[7 * i] = position.x;
+            avatarPose[7 * i + 1] = position.y;
+            avatarPose[7 * i + 2] = position.z;
+            avatarPose[7 * i + 3] = rotation.x;
+            avatarPose[7 * i + 4] = rotation.y;
+            avatarPose[7 * i + 5] = rotation.z;
+            avatarPose[7 * i + 6] = rotation.w;
+        }
+
+        return (jointPaths, avatarPose);
+    }
+
+    public (HumanSkeletonTransform skeletonTransform, Vector3 localPosedPosition, Quaternion localPosedRotation, Matrix4x4 posedLocalToWorldMatrix)[] ApplyPose(Avatar avatar, HumanPose pose)
+    {
+        var (jointPaths, avatarPose) = CreatePoseArrays();
+
+        HumanPoseHandler humanPoseHandler = new(avatar, jointPaths);
+
+        humanPoseHandler.SetInternalAvatarPose(avatarPose);
+        humanPoseHandler.SetInternalHumanPose(ref pose);
+        humanPoseHandler.GetInternalAvatarPose(avatarPose);
+
+        var poseArray = Enumerable.Range(0, jointPaths.Length).Select((index) =>
+        {
+            Vector3 localPosedPosition = new Vector3(
+                avatarPose[7 * index], avatarPose[7 * index + 1], avatarPose[7 * index + 2]
+            );
+            Quaternion localPosedRotation = new Quaternion(
+                avatarPose[7 * index + 3], avatarPose[7 * index + 4], avatarPose[7 * index + 5], avatarPose[7 * index + 6]
+            );
+
+            return (
+                skeletonTransforms[index],
+                localPosedPosition,
+                localPosedRotation,
+                Matrix4x4.identity
+            );
+        }).ToArray();
+
+        for (int index = 0; index < poseArray.Length; ++index)
+        {
+            var localToWorldMatrix = Matrix4x4.TRS(
+                poseArray[index].localPosedPosition,
+                poseArray[index].localPosedRotation,
+                skeletonTransforms[index].localScale
+            );
+
+            var maybeParent = skeletonTransforms[index].parentIndex;
+
+            while (maybeParent != null)
+            {
+                // Necessary because C# is dumb
+                int parent = maybeParent ?? 0;
+
+                localToWorldMatrix = Matrix4x4.TRS(
+                    poseArray[parent].localPosedPosition,
+                    poseArray[parent].localPosedRotation,
+                    skeletonTransforms[parent].localScale
+                ) * localToWorldMatrix;
+                maybeParent = skeletonTransforms[parent].parentIndex;
+            }
+
+            skeletonTransforms[index].localToWorldMatrix = localToWorldMatrix;
+        }
+
+        return poseArray;
+    }
 #endregion
 
 }

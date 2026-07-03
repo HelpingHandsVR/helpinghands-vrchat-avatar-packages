@@ -51,6 +51,12 @@ public class MecanimAvatarDebug : MonoBehaviour
     [NonSerialized]
     public float[] poseSkeleton_MuscleValues = null;
 
+    [NonSerialized]
+    public bool quaternionProbe_Gizmo = false;
+    [NonSerialized]
+    public int quaternionProbe_Index = 0;
+
+
 #if UNITY_EDITOR
     [MenuItem("CONTEXT/Animator/HelpingHandsVR/Debug/PrintMecanimInfo")]
 #endif
@@ -207,6 +213,9 @@ public class MecanimAvatarDebug : MonoBehaviour
             return;
         }
 
+        var oldGizmo_Color = Gizmos.color;
+        var oldGizmo_Matrix = Gizmos.matrix;
+
         var avatar = target.avatar;
         var humanDescription = target.avatar.humanDescription;
 
@@ -263,6 +272,22 @@ public class MecanimAvatarDebug : MonoBehaviour
                 Gizmos.DrawSphere(pair.Value.transformation.MultiplyPoint(Vector3.zero) + target.transform.position, poseSkeleton_BallSize);
             }
         }
+
+        if (quaternionProbe_Gizmo)
+        {
+            var mapValue = skeletonFullMap[humanDescription.skeleton[quaternionProbe_Index].name];
+            Gizmos.matrix = transform.localToWorldMatrix * mapValue.transformation;
+
+            Gizmos.color = Color.red;
+            Gizmos.DrawLine(Vector3.zero, Vector3.right * 0.1f);
+            Gizmos.color = Color.green;
+            Gizmos.DrawLine(Vector3.zero, Vector3.up * 0.1f);
+            Gizmos.color = Color.blue;
+            Gizmos.DrawLine(Vector3.zero, Vector3.forward * 0.1f);
+        }
+
+        Gizmos.color = oldGizmo_Color;
+        Gizmos.matrix = oldGizmo_Matrix;
     }
 
 #if UNITY_EDITOR
@@ -456,6 +481,15 @@ public class MecanimAvatarDebug : MonoBehaviour
                         EditorGUILayout.EndVertical();
                     }
                     EditorGUILayout.EndScrollView();
+                    EditorGUI.indentLevel--;
+                }
+
+                settings.quaternionProbe_Gizmo = EditorGUILayout.Foldout(settings.quaternionProbe_Gizmo, "Show quaternion probe");
+                if (settings.quaternionProbe_Gizmo) {
+                    EditorGUI.indentLevel++;
+
+                    settings.quaternionProbe_Index = EditorGUILayout.Popup("Skeleton transform", settings.quaternionProbe_Index, humanDescription.skeleton.Select((v) => string.Join("/", skeletonFullMap[v.name].fullName)).ToArray());
+
                     EditorGUI.indentLevel--;
                 }
             }
