@@ -228,7 +228,7 @@ for (upm_package_manifest_file, upm_package_manifest) in UPM_PACKAGES:
     folder_count_before = len(upm_folders)
 
     def exclusion_criteria(path: pathlib.Path) -> bool:
-        if "ExcludedFromPackage" in path.parts:
+        if "_ExcludedFromPackage" in path.parts:
             return True
 
         return False
