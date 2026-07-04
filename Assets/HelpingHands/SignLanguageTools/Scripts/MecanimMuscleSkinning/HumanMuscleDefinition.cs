@@ -76,6 +76,14 @@ public class HumanMuscleDefinition
                 return Matrix4x4.TRS(localPosition, localRotation, localScale);
             }
         }
+
+        public string FullName
+        {
+            get
+            {
+                return string.Join("/", path);
+            }
+        }
     }
 #endregion
 
@@ -150,6 +158,10 @@ public class HumanMuscleDefinition
     public HumanMuscleInfo[] muscleInfos;
     public HumanBoneInfo[] boneInfos;
     public HumanSkeletonTransform[] skeletonTransforms;
+
+    public Dictionary<string, int> nameToSkeletonTransformIndexLookup;
+    public Dictionary<string, int> pathToSkeletonTransformIndexLookup;
+    public Dictionary<HumanBodyBones, int> humanBodyBonesToSkeletonTransformIndexLookup;
 #endregion
 
 #region Constructor
@@ -296,6 +308,58 @@ public class HumanMuscleDefinition
             };
         }).ToArray();
 
+        // Lookup creation
+        nameToSkeletonTransformIndexLookup = skeletonTransforms
+            .Select((value, index) => (value, index))
+            .ToDictionary(
+                (st) => st.value.name,
+                (st) => st.index
+            );
+        pathToSkeletonTransformIndexLookup = skeletonTransforms
+            .Select((value, index) => (value, index))
+            .ToDictionary(
+                (st) => st.value.FullName,
+                (st) => st.index
+            );
+        humanBodyBonesToSkeletonTransformIndexLookup = skeletonTransforms
+            .Select((value, index) => (value, index))
+            .Where(pair => pair.value.humanBoneIndex != null)
+            .ToDictionary(
+                (st) => boneInfos[st.value.humanBoneIndex ?? 0].humanBodyBones,
+                (st) => st.index
+            );
+    }
+#endregion
+
+#region Operators
+    public HumanSkeletonTransform this[int index] {
+        get {
+            return skeletonTransforms[index];
+        }
+    }
+    public (int index, HumanSkeletonTransform skeletonTransform)? this[string name] {
+        get {
+            if (nameToSkeletonTransformIndexLookup.TryGetValue(name, out int index))
+            {
+                return (index, skeletonTransforms[index]);
+            } else if (pathToSkeletonTransformIndexLookup.TryGetValue(name, out index))
+            {
+                return (index, skeletonTransforms[index]);
+            } else
+            {
+                return null;
+            }
+        }
+    }
+    public (int index, HumanSkeletonTransform skeletonTransform)? this[HumanBodyBones humanBodyBones] {
+        get {
+            if (humanBodyBonesToSkeletonTransformIndexLookup.TryGetValue(humanBodyBones, out int index))
+            {
+                return (index, skeletonTransforms[index]);
+            } else {
+                return null;
+            }
+        }
     }
 #endregion
 
@@ -336,10 +400,10 @@ public class HumanMuscleDefinition
 
         var poseArray = Enumerable.Range(0, jointPaths.Length).Select((index) =>
         {
-            Vector3 localPosedPosition = new Vector3(
+            Vector3 localPosedPosition = new(
                 avatarPose[7 * index], avatarPose[7 * index + 1], avatarPose[7 * index + 2]
             );
-            Quaternion localPosedRotation = new Quaternion(
+            Quaternion localPosedRotation = new(
                 avatarPose[7 * index + 3], avatarPose[7 * index + 4], avatarPose[7 * index + 5], avatarPose[7 * index + 6]
             );
 
@@ -374,8 +438,11 @@ public class HumanMuscleDefinition
                 maybeParent = skeletonTransforms[parent].parentIndex;
             }
 
-            skeletonTransforms[index].localToWorldMatrix = localToWorldMatrix;
+            poseArray[index].identity = localToWorldMatrix;
         }
+
+        avatarPose.Dispose();
+        humanPoseHandler.Dispose();
 
         return poseArray;
     }

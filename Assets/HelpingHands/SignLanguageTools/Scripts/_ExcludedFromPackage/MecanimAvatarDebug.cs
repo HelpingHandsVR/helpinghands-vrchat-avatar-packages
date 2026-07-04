@@ -1,14 +1,9 @@
 
-
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Animations;
-using Unity.Collections;
 using System;
-
-
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -95,117 +90,6 @@ public class MecanimAvatarDebug : MonoBehaviour
         UnityEngine.Debug.Log("Done");
     }
 
-    static Dictionary<string, (string[] fullName, string parent, Matrix4x4 local, Matrix4x4 transformation)> CreateSkeletonMap(HumanDescription humanDescription)
-    {
-        var skeletonBoneParentField = typeof(SkeletonBone).GetField("parentName", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
-        var skeletonMap = humanDescription.skeleton.ToDictionary(
-            (k) => k.name,
-            (k) => (Matrix4x4.TRS(k.position, k.rotation, k.scale), (string)skeletonBoneParentField.GetValue(k))
-        );
-        var skeletonFullMap = skeletonMap.ToDictionary(
-            (p) => p.Key,
-            (p) =>
-            {
-                var fullName = new List<string>
-                {
-                    p.Key
-                };
-                var transformation = p.Value.Item1;
-                var parent = p.Value.Item2;
-
-                while (!string.IsNullOrWhiteSpace(parent))
-                {
-                    fullName.Add(parent);
-
-                    if (skeletonMap.TryGetValue(parent, out var newParent))
-                    {
-                        transformation = newParent.Item1 * transformation;
-                        parent = newParent.Item2;
-                    } else
-                    {
-                        parent = null;
-                    }
-                }
-
-                fullName.Reverse();
-                return (fullName.ToArray(), string.IsNullOrWhiteSpace(p.Value.Item2) ? null : p.Value.Item2, p.Value.Item1, transformation);
-            }
-        );
-
-        return skeletonFullMap;
-    }
-
-    static Dictionary<string, (string[] fullName, string parent, Matrix4x4 local, Matrix4x4 transformation)> CreateSkeletonMapFromPose(Avatar avatar, HumanPose pose)
-    {
-        // ugly!
-        var originalSkeletonMap = CreateSkeletonMap(avatar.humanDescription);
-        var paths = avatar.humanDescription.skeleton.Select((b) => string.Join("/", originalSkeletonMap[b.name].fullName.Skip(1))).ToArray();
-
-        HumanPoseHandler humanPoseHandler = new(avatar, paths);
-        NativeArray<float> avatarPose = new(paths.Length * 7, Allocator.Persistent);
-
-        for (int i = 0; i < paths.Length; ++i)
-        {
-            Vector3 position = avatar.humanDescription.skeleton[i].position;
-            Quaternion rotation = avatar.humanDescription.skeleton[i].rotation;
-            avatarPose[7 * i] = position.x;
-            avatarPose[7 * i + 1] = position.y;
-            avatarPose[7 * i + 2] = position.z;
-            avatarPose[7 * i + 3] = rotation.x;
-            avatarPose[7 * i + 4] = rotation.y;
-            avatarPose[7 * i + 5] = rotation.z;
-            avatarPose[7 * i + 6] = rotation.w;
-        }
-
-        humanPoseHandler.SetInternalAvatarPose(avatarPose);
-        humanPoseHandler.SetInternalHumanPose(ref pose);
-        humanPoseHandler.GetInternalAvatarPose(avatarPose);
-
-        var skeletonBoneParentField = typeof(SkeletonBone).GetField("parentName", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
-        var skeletonMap = avatar.humanDescription.skeleton.Select((x, i) => new { Item = x, Index = i }).ToDictionary(
-            (k) => k.Item.name,
-            (k) => (Matrix4x4.TRS(
-                new Vector3(avatarPose[7 * k.Index], avatarPose[7 * k.Index + 1], avatarPose[7 * k.Index + 2]),
-                new Quaternion(avatarPose[7 * k.Index + 3], avatarPose[7 * k.Index + 4], avatarPose[7 * k.Index + 5], avatarPose[7 * k.Index + 6]),
-                k.Item.scale
-            ), (string)skeletonBoneParentField.GetValue(k.Item))
-        );
-        var skeletonFullMap = skeletonMap.ToDictionary(
-            (p) => p.Key,
-            (p) =>
-            {
-                var fullName = new List<string>
-                {
-                    p.Key
-                };
-                var transformation = p.Value.Item1;
-                var parent = p.Value.Item2;
-
-                while (!string.IsNullOrWhiteSpace(parent))
-                {
-                    fullName.Add(parent);
-
-                    if (skeletonMap.TryGetValue(parent, out var newParent))
-                    {
-                        transformation = newParent.Item1 * transformation;
-                        parent = newParent.Item2;
-                    } else
-                    {
-                        parent = null;
-                    }
-                }
-
-                fullName.Reverse();
-                return (fullName.ToArray(), string.IsNullOrWhiteSpace(p.Value.Item2) ? null : p.Value.Item2, p.Value.Item1, transformation);
-            }
-        );
-
-        avatarPose.Dispose();
-        humanPoseHandler.Dispose();
-
-        return skeletonFullMap;
-    }
-
     void OnDrawGizmosSelected()
     {
         if (!target.avatar || !target.avatar.isHuman)
@@ -217,20 +101,18 @@ public class MecanimAvatarDebug : MonoBehaviour
         var oldGizmo_Matrix = Gizmos.matrix;
 
         var avatar = target.avatar;
-        var humanDescription = target.avatar.humanDescription;
-
-        var skeletonFullMap = CreateSkeletonMap(humanDescription);
+        var muscleDefinition = new MecanimMuscleSkinning.HumanMuscleDefinition(avatar);
 
         if (lineSkeleton_Gizmo) {
-            foreach (var pair in skeletonFullMap)
+            foreach (var st in muscleDefinition.skeletonTransforms)
             {
                 Gizmos.color = lineSkeleton_Color;
 
-                var positionOfThis = (target.transform.localToWorldMatrix * pair.Value.transformation).MultiplyPoint(Vector3.zero);
+                var positionOfThis = (target.transform.localToWorldMatrix * st.localToWorldMatrix).MultiplyPoint(Vector3.zero);
 
-                if (!string.IsNullOrWhiteSpace(pair.Value.parent))
+                if (st.parentIndex != null)
                 {
-                    var positionOfParent = (target.transform.localToWorldMatrix * skeletonFullMap[pair.Value.parent].transformation).MultiplyPoint(Vector3.zero);
+                    var positionOfParent = (target.transform.localToWorldMatrix * muscleDefinition.skeletonTransforms[st.parentIndex ?? 0].localToWorldMatrix).MultiplyPoint(Vector3.zero);
 
                     Gizmos.DrawLine(
                         positionOfParent,
@@ -238,7 +120,7 @@ public class MecanimAvatarDebug : MonoBehaviour
                     );
                 }
 
-                Gizmos.DrawSphere(pair.Value.transformation.MultiplyPoint(Vector3.zero) + target.transform.position, lineSkeleton_BallSize);
+                Gizmos.DrawSphere(target.transform.localToWorldMatrix.MultiplyPoint(Vector3.zero) + target.transform.position, lineSkeleton_BallSize);
             }
         }
 
@@ -251,17 +133,17 @@ public class MecanimAvatarDebug : MonoBehaviour
                 bodyRotation = Quaternion.identity,
             };
 
-            var skeletonMap2 = CreateSkeletonMapFromPose(avatar, pose);
+            var posed = muscleDefinition.ApplyPose(avatar, pose);
 
-            foreach (var pair in skeletonMap2)
+            foreach (var tuple in posed)
             {
                 Gizmos.color = poseSkeleton_Color;
 
-                var positionOfThis = (target.transform.localToWorldMatrix * pair.Value.transformation).MultiplyPoint(Vector3.zero);
+                var positionOfThis = (target.transform.localToWorldMatrix * tuple.posedLocalToWorldMatrix).MultiplyPoint(Vector3.zero);
 
-                if (!string.IsNullOrWhiteSpace(pair.Value.parent))
+                if (tuple.skeletonTransform.parentIndex != null)
                 {
-                    var positionOfParent = (target.transform.localToWorldMatrix * skeletonMap2[pair.Value.parent].transformation).MultiplyPoint(Vector3.zero);
+                    var positionOfParent = (target.transform.localToWorldMatrix * posed[tuple.skeletonTransform.parentIndex ?? 0].posedLocalToWorldMatrix).MultiplyPoint(Vector3.zero);
 
                     Gizmos.DrawLine(
                         positionOfParent,
@@ -269,14 +151,14 @@ public class MecanimAvatarDebug : MonoBehaviour
                     );
                 }
 
-                Gizmos.DrawSphere(pair.Value.transformation.MultiplyPoint(Vector3.zero) + target.transform.position, poseSkeleton_BallSize);
+                Gizmos.DrawSphere(tuple.posedLocalToWorldMatrix.MultiplyPoint(Vector3.zero) + target.transform.position, poseSkeleton_BallSize);
             }
         }
 
         if (quaternionProbe_Gizmo)
         {
-            var mapValue = skeletonFullMap[humanDescription.skeleton[quaternionProbe_Index].name];
-            Gizmos.matrix = transform.localToWorldMatrix * mapValue.transformation;
+            var st = muscleDefinition[quaternionProbe_Index];
+            Gizmos.matrix = transform.localToWorldMatrix * st.localToWorldMatrix;
 
             Gizmos.color = Color.red;
             Gizmos.DrawLine(Vector3.zero, Vector3.right * 0.1f);
@@ -345,7 +227,7 @@ public class MecanimAvatarDebug : MonoBehaviour
                 MuscleHandle[] muscleHandles = new MuscleHandle[MuscleHandle.muscleHandleCount];
                 MuscleHandle.GetMuscleHandles(muscleHandles);
                 Dictionary<string, HumanBone> boneMap = humanDescription.human.ToDictionary((b) => b.humanName);
-                var skeletonFullMap = CreateSkeletonMap(humanDescription);
+                var muscleDefinition = new MecanimMuscleSkinning.HumanMuscleDefinition(avatar);
 
                 settings.genericMecanimBones_Show = EditorGUILayout.Foldout(settings.genericMecanimBones_Show, "Show generic Mecanim bones");
                 if (settings.genericMecanimBones_Show) {
@@ -365,7 +247,7 @@ public class MecanimAvatarDebug : MonoBehaviour
                         EditorGUILayout.LabelField($"<b>X Muscle:</b>  {x_muscle}{(x_muscle == -1 ? "" : " (" + HumanTrait.MuscleName[x_muscle] + ")")}", mixedStyle);
                         EditorGUILayout.LabelField($"<b>Y Muscle:</b>  {y_muscle}{(y_muscle == -1 ? "" : " (" + HumanTrait.MuscleName[y_muscle] + ")")}", mixedStyle);
                         EditorGUILayout.LabelField($"<b>Z Muscle:</b>  {z_muscle}{(z_muscle == -1 ? "" : " (" + HumanTrait.MuscleName[z_muscle] + ")")}", mixedStyle);
-                        ShowBoneInfo(avatar, boneMap, skeletonFullMap, i);
+                        ShowBoneInfo(avatar, boneMap, muscleDefinition, i);
 
                         EditorGUILayout.EndVertical();
                     }
@@ -427,7 +309,7 @@ public class MecanimAvatarDebug : MonoBehaviour
                         EditorGUILayout.LabelField($"<b>Bone index:</b>  {associatedBone}", mixedStyle);
                         EditorGUILayout.LabelField($"<b>Bone name:</b>  {HumanTrait.BoneName[associatedBone]}", mixedStyle);
 
-                        ShowBoneInfo(avatar, boneMap, skeletonFullMap, associatedBone);
+                        ShowBoneInfo(avatar, boneMap, muscleDefinition, associatedBone);
 
                         EditorGUILayout.EndVertical();
                     }
@@ -488,7 +370,11 @@ public class MecanimAvatarDebug : MonoBehaviour
                 if (settings.quaternionProbe_Gizmo) {
                     EditorGUI.indentLevel++;
 
-                    settings.quaternionProbe_Index = EditorGUILayout.Popup("Skeleton transform", settings.quaternionProbe_Index, humanDescription.skeleton.Select((v) => string.Join("/", skeletonFullMap[v.name].fullName)).ToArray());
+                    settings.quaternionProbe_Index = EditorGUILayout.Popup(
+                        "Skeleton transform",
+                        settings.quaternionProbe_Index,
+                        muscleDefinition.skeletonTransforms.Select((v) => v.FullName).ToArray()
+                    );
 
                     EditorGUI.indentLevel--;
                 }
@@ -497,7 +383,7 @@ public class MecanimAvatarDebug : MonoBehaviour
             public void ShowBoneInfo(
                 Avatar avatar,
                 Dictionary<string, HumanBone> boneMap,
-                Dictionary<string, (string[] fullName, string parent, Matrix4x4 local, Matrix4x4 transformation)> skeletonFullMap,
+                MecanimMuscleSkinning.HumanMuscleDefinition muscleDefinition,
                 int index
             )
             {
@@ -526,7 +412,7 @@ public class MecanimAvatarDebug : MonoBehaviour
                 if (boneMap.TryGetValue(HumanTrait.BoneName[index], out HumanBone boneMapped))
                 {
                     EditorGUILayout.LabelField($"<b>Mapped to avatar bone:</b>  {boneMapped.boneName}", mixedStyle);
-                    EditorGUILayout.LabelField($"<size=10>({string.Join("/", skeletonFullMap[boneMapped.boneName].fullName)})</size>", mixedStyle);
+                    EditorGUILayout.LabelField($"<size=10>({muscleDefinition[boneMapped.boneName].Value.skeletonTransform.FullName})</size>", mixedStyle);
                     EditorGUILayout.LabelField($"<b>Range in avatar:</b>  {boneMapped.limit.min}-{boneMapped.limit.max} [c: {boneMapped.limit.center}, l: {boneMapped.limit.axisLength}, d: {boneMapped.limit.useDefaultValues}]", mixedStyle);
                 } else
                 {
