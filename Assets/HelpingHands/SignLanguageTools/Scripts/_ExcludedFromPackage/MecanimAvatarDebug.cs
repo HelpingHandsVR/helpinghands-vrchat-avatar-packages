@@ -182,12 +182,12 @@ public class MecanimAvatarDebug : MonoBehaviour
 
                 if (quaternionProbe_EnablePreRotation && st.humanBoneIndex != null)
                 {
-                    rotation = rotation * muscleDefinition.boneInfos[st.humanBoneIndex ?? 0].preRotation;
+                    rotation = muscleDefinition.boneInfos[st.humanBoneIndex ?? 0].preRotation * rotation;
                 }
 
                 if (quaternionProbe_EnablePostRotation && st.humanBoneIndex != null)
                 {
-                    rotation = muscleDefinition.boneInfos[st.humanBoneIndex ?? 0].postRotation * rotation;
+                    rotation = rotation * muscleDefinition.boneInfos[st.humanBoneIndex ?? 0].postRotation;
                 }
 
                 if (quaternionProbe_EnableZYPostQ && st.humanBoneIndex != null)
