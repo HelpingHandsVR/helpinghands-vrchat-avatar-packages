@@ -66,6 +66,7 @@ public class HumanMuscleDefinition
         public string[] path;
         public int? parentIndex;
         public bool parentAmbiguous;
+        public List<int> parentIndices;
         public List<int> childIndices;
         public Matrix4x4 localToWorldMatrix;
         public int? humanBoneIndex;
@@ -213,6 +214,7 @@ public class HumanMuscleDefinition
 
                 parentIndex = null,
                 parentAmbiguous = false,
+                parentIndices = new List<int>(),
                 childIndices = new List<int>(),
             };
         }).ToArray();
@@ -252,6 +254,7 @@ public class HumanMuscleDefinition
                 // Necessary because C# is dumb
                 int parent = maybeParent ?? 0;
 
+                skeletonTransforms[index].parentIndices.Add(parent);
                 reversePath.Add(skeletonTransforms[parent].name);
                 localToWorldMatrix = skeletonTransforms[parent].LocalMatrix * localToWorldMatrix;
                 maybeParent = skeletonTransforms[parent].parentIndex;
@@ -282,6 +285,7 @@ public class HumanMuscleDefinition
             if (humanToSkeletonLookup.TryGetValue(HumanTrait.BoneName[boneIndex], out HumanBone boneMapped))
             {
                 skeletonIndex = skeletonNameLookup[boneMapped.boneName].index;
+                skeletonNameLookup[boneMapped.boneName].value.humanBoneIndex = boneIndex;
             }
 
             return new HumanBoneInfo() {
@@ -423,19 +427,13 @@ public class HumanMuscleDefinition
                 skeletonTransforms[index].localScale
             );
 
-            var maybeParent = skeletonTransforms[index].parentIndex;
-
-            while (maybeParent != null)
+            foreach (int parent in skeletonTransforms[index].parentIndices)
             {
-                // Necessary because C# is dumb
-                int parent = maybeParent ?? 0;
-
                 localToWorldMatrix = Matrix4x4.TRS(
                     poseArray[parent].localPosedPosition,
                     poseArray[parent].localPosedRotation,
                     skeletonTransforms[parent].localScale
                 ) * localToWorldMatrix;
-                maybeParent = skeletonTransforms[parent].parentIndex;
             }
 
             poseArray[index].identity = localToWorldMatrix;

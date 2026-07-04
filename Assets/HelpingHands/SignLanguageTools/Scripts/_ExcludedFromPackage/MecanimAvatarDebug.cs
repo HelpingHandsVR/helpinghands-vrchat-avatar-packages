@@ -23,6 +23,11 @@ public class MecanimAvatarDebug : MonoBehaviour
     public bool genericMecanimMuscles_Show = false;
     [NonSerialized]
     public Vector2 genericMecanimMuscles_Scroll;
+    [NonSerialized]
+    public bool muscleDefinitionInfo_Show = false;
+    [NonSerialized]
+    public Vector2 muscleDefinitionInfo_Scroll;
+
 
     [NonSerialized]
     public bool lineSkeleton_Gizmo = false;
@@ -48,6 +53,20 @@ public class MecanimAvatarDebug : MonoBehaviour
 
     [NonSerialized]
     public bool quaternionProbe_Gizmo = false;
+    [NonSerialized]
+    public bool quaternionProbe_SkeletonGizmo = false;
+    [NonSerialized]
+    public Color quaternionProbe_SkeletonColor = Color.magenta;
+    [NonSerialized]
+    public float quaternionProbe_SkeletonBallSize = 0.0025f;
+    [NonSerialized]
+    public bool quaternionProbe_EnablePreRotation = false;
+    [NonSerialized]
+    public bool quaternionProbe_EnablePostRotation = false;
+    [NonSerialized]
+    public bool quaternionProbe_EnableZYPostQ = false;
+    [NonSerialized]
+    public bool quaternionProbe_EnableZYRoll = false;
     [NonSerialized]
     public int quaternionProbe_Index = 0;
 
@@ -120,7 +139,7 @@ public class MecanimAvatarDebug : MonoBehaviour
                     );
                 }
 
-                Gizmos.DrawSphere(target.transform.localToWorldMatrix.MultiplyPoint(Vector3.zero) + target.transform.position, lineSkeleton_BallSize);
+                Gizmos.DrawSphere(st.localToWorldMatrix.MultiplyPoint(Vector3.zero) + target.transform.position, lineSkeleton_BallSize);
             }
         }
 
@@ -157,8 +176,72 @@ public class MecanimAvatarDebug : MonoBehaviour
 
         if (quaternionProbe_Gizmo)
         {
-            var st = muscleDefinition[quaternionProbe_Index];
-            Gizmos.matrix = transform.localToWorldMatrix * st.localToWorldMatrix;
+            var matrices = muscleDefinition.skeletonTransforms.Select((st) =>
+            {
+                Quaternion rotation = st.localRotation;
+
+                if (quaternionProbe_EnablePreRotation && st.humanBoneIndex != null)
+                {
+                    rotation = rotation * muscleDefinition.boneInfos[st.humanBoneIndex ?? 0].preRotation;
+                }
+
+                if (quaternionProbe_EnablePostRotation && st.humanBoneIndex != null)
+                {
+                    rotation = muscleDefinition.boneInfos[st.humanBoneIndex ?? 0].postRotation * rotation;
+                }
+
+                if (quaternionProbe_EnableZYPostQ && st.humanBoneIndex != null)
+                {
+                    rotation = muscleDefinition.boneInfos[st.humanBoneIndex ?? 0].zyPostQ * rotation;
+                }
+
+                if (quaternionProbe_EnableZYRoll && st.humanBoneIndex != null)
+                {
+                    rotation = muscleDefinition.boneInfos[st.humanBoneIndex ?? 0].zyRoll * rotation;
+                }
+
+                return Matrix4x4.TRS(
+                    st.localPosition,
+                    rotation,
+                    st.localScale
+                );
+            }).ToList();
+
+            var worldMatrices = Enumerable.Range(0, muscleDefinition.skeletonTransforms.Length).Select((index) =>
+            {
+                Gizmos.color = quaternionProbe_SkeletonColor;
+
+                List<int> hierarchyIndices = new() { index };
+                hierarchyIndices.AddRange(muscleDefinition.skeletonTransforms[index].parentIndices);
+
+                var matrixStack = hierarchyIndices.Select((i) => matrices[i]).ToList();
+
+                // Accumulate matrices backwards
+                for (int i = 1; i < matrixStack.Count; ++i)
+                {
+                    matrixStack[matrixStack.Count - 1 - i] = matrixStack[matrixStack.Count - i] * matrixStack[matrixStack.Count - 1 - i];
+                }
+
+                var positionOfThis = (target.transform.localToWorldMatrix * matrixStack[0]).MultiplyPoint(Vector3.zero);
+
+                if (matrixStack.Count > 1)
+                {
+                    var positionOfParent = (target.transform.localToWorldMatrix * matrixStack[1]).MultiplyPoint(Vector3.zero);
+
+                    if (quaternionProbe_SkeletonGizmo)
+                        Gizmos.DrawLine(
+                            positionOfParent,
+                            positionOfThis
+                        );
+                }
+
+                if (quaternionProbe_SkeletonGizmo)
+                    Gizmos.DrawSphere(matrixStack[0].MultiplyPoint(Vector3.zero) + target.transform.position, quaternionProbe_SkeletonBallSize);
+
+                return matrixStack[0];
+            }).ToList();
+
+            Gizmos.matrix = transform.localToWorldMatrix * worldMatrices[quaternionProbe_Index];
 
             Gizmos.color = Color.red;
             Gizmos.DrawLine(Vector3.zero, Vector3.right * 0.1f);
@@ -317,6 +400,76 @@ public class MecanimAvatarDebug : MonoBehaviour
                     EditorGUI.indentLevel--;
                 }
 
+                settings.muscleDefinitionInfo_Show = EditorGUILayout.Foldout(settings.muscleDefinitionInfo_Show, "Show generated HumanMuscleDefinition info");
+                if (settings.muscleDefinitionInfo_Show) {
+                    EditorGUI.indentLevel++;
+                    settings.muscleDefinitionInfo_Scroll = EditorGUILayout.BeginScrollView(settings.muscleDefinitionInfo_Scroll, GUILayout.Height(400.0f));
+                    for (int i = 0; i < muscleDefinition.skeletonTransforms.Length; ++i)
+                    {
+                        var st = muscleDefinition.skeletonTransforms[i];
+
+                        EditorGUILayout.BeginVertical("box");
+
+                        EditorGUILayout.BeginHorizontal("AC BoldHeader");
+                        EditorGUILayout.LabelField($"[{i}] <b>{st.FullName}</b>", mixedStyle);
+                        EditorGUILayout.EndHorizontal();
+
+                        EditorGUILayout.LabelField($"<b>Name:</b>  {st.name}", mixedStyle);
+                        EditorGUILayout.LabelField($"<b>Position:</b>  {st.localPosition}", mixedStyle);
+                        EditorGUILayout.LabelField($"<b>Rotation:</b>  {st.localRotation}", mixedStyle);
+                        EditorGUILayout.LabelField($"<b>Scale:</b>  {st.localScale}", mixedStyle);
+
+                        EditorGUILayout.LabelField($"<b>Parent ambiguous:</b>  {st.parentAmbiguous}", mixedStyle);
+                        EditorGUILayout.LabelField($"<b>Parents:</b>  {string.Join(", ", st.parentIndices.Select(s => s.ToString()))}", mixedStyle);
+                        EditorGUILayout.LabelField($"<b>Children:</b>  {string.Join(", ", st.childIndices.Select(s => s.ToString()))}", mixedStyle);
+
+                        EditorGUILayout.LabelField($"<b>Human bone index:</b>  {st.humanBoneIndex}", mixedStyle);
+                        if (st.humanBoneIndex != null)
+                        {
+                            EditorGUI.indentLevel++;
+                            var hb = muscleDefinition.boneInfos[st.humanBoneIndex ?? 0];
+
+                            EditorGUILayout.LabelField($"<b>Human bone bones:</b>  {hb.humanBodyBones}", mixedStyle);
+                            EditorGUILayout.LabelField($"<b>Trait name:</b>  {hb.traitBoneName}", mixedStyle);
+                            EditorGUILayout.LabelField($"<b>Axis length:</b>  {hb.axisLength}", mixedStyle);
+                            EditorGUILayout.LabelField($"<b>Pre rotation:</b>  {hb.preRotation}", mixedStyle);
+                            EditorGUILayout.LabelField($"<b>Post rotation:</b>  {hb.postRotation}", mixedStyle);
+                            EditorGUILayout.LabelField($"<b>ZY Post Q:</b>  {hb.zyPostQ}", mixedStyle);
+                            EditorGUILayout.LabelField($"<b>ZY Roll:</b>  {hb.zyRoll}", mixedStyle);
+                            EditorGUILayout.LabelField($"<b>Limit sign:</b>  {hb.limitSign}", mixedStyle);
+
+                            var muscles = new (string, int?)[]
+                            {
+                                ("X", hb.xMuscleIndex),
+                                ("Y", hb.yMuscleIndex),
+                                ("Z", hb.zMuscleIndex),
+                            };
+
+                            foreach (var (muscleAxis, muscleIndex) in muscles)
+                            {
+                                EditorGUILayout.LabelField($"<b>{muscleAxis} muscle index:</b>  {muscleIndex}", mixedStyle);
+                                if (muscleIndex != null)
+                                {
+                                    EditorGUI.indentLevel++;
+                                    var hm = muscleDefinition.muscleInfos[muscleIndex ?? 0];
+
+                                    EditorGUILayout.LabelField($"<b>Trait name:</b>  {hm.traitMuscleName}", mixedStyle);
+                                    EditorGUILayout.LabelField($"<b>Handle name:</b>  {hm.handleMuscleName}", mixedStyle);
+                                    EditorGUILayout.LabelField($"<b>Part DoF:</b>  {hm.humanPartDof}", mixedStyle);
+                                    EditorGUILayout.LabelField($"<b>DoF:</b>  {hm.dof}", mixedStyle);
+                                    EditorGUI.indentLevel--;
+                                }
+                            }
+
+                            EditorGUI.indentLevel--;
+                        }
+
+                        EditorGUILayout.EndVertical();
+                    }
+                    EditorGUILayout.EndScrollView();
+                    EditorGUI.indentLevel--;
+                }
+
                 EditorGUILayout.Separator();
 
                 settings.lineSkeleton_Gizmo = EditorGUILayout.Foldout(settings.lineSkeleton_Gizmo, "Show line skeleton");
@@ -369,6 +522,17 @@ public class MecanimAvatarDebug : MonoBehaviour
                 settings.quaternionProbe_Gizmo = EditorGUILayout.Foldout(settings.quaternionProbe_Gizmo, "Show quaternion probe");
                 if (settings.quaternionProbe_Gizmo) {
                     EditorGUI.indentLevel++;
+
+                    settings.quaternionProbe_SkeletonGizmo = EditorGUILayout.Toggle("Skeleton", settings.quaternionProbe_SkeletonGizmo);
+                    settings.quaternionProbe_SkeletonColor = EditorGUILayout.ColorField("Color", settings.quaternionProbe_SkeletonColor);
+                    settings.quaternionProbe_SkeletonBallSize = EditorGUILayout.FloatField("Ball size", settings.quaternionProbe_SkeletonBallSize);
+
+                    EditorGUILayout.Separator();
+
+                    settings.quaternionProbe_EnablePreRotation = EditorGUILayout.Toggle("PreRotation", settings.quaternionProbe_EnablePreRotation);
+                    settings.quaternionProbe_EnablePostRotation = EditorGUILayout.Toggle("PostRotation", settings.quaternionProbe_EnablePostRotation);
+                    settings.quaternionProbe_EnableZYPostQ = EditorGUILayout.Toggle("ZYPostQ", settings.quaternionProbe_EnableZYPostQ);
+                    settings.quaternionProbe_EnableZYRoll = EditorGUILayout.Toggle("ZYRoll", settings.quaternionProbe_EnableZYRoll);
 
                     settings.quaternionProbe_Index = EditorGUILayout.Popup(
                         "Skeleton transform",
