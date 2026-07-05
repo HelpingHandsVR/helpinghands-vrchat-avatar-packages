@@ -30,6 +30,8 @@ public class HumanMuscleDefinition
         public HumanPartDof humanPartDof;
         public int dof;
         public int humanBoneIndex;
+        public float defaultRangeMin;
+        public float defaultRangeMax;
     }
 
     [Serializable]
@@ -47,6 +49,10 @@ public class HumanMuscleDefinition
         public int? xMuscleIndex;
         public int? yMuscleIndex;
         public int? zMuscleIndex;
+        public Vector3 customRangeMin;
+        public Vector3 customRangeMax;
+        public Vector3 customRangeCenter;
+        public bool useDefaultRange;
 
         // Calculated
         public int? skeletonIndex;
@@ -195,7 +201,9 @@ public class HumanMuscleDefinition
                 handleMuscleName = muscleHandles[muscleIndex].name,
                 humanPartDof = muscleHandles[muscleIndex].humanPartDof,
                 dof = muscleHandles[muscleIndex].dof,
-                humanBoneIndex = HumanTrait.BoneFromMuscle(muscleIndex)
+                humanBoneIndex = HumanTrait.BoneFromMuscle(muscleIndex),
+                defaultRangeMin = HumanTrait.GetMuscleDefaultMin(muscleIndex),
+                defaultRangeMax = HumanTrait.GetMuscleDefaultMax(muscleIndex),
             };
         }).ToArray();
 
@@ -281,11 +289,20 @@ public class HumanMuscleDefinition
             int zMuscleIndex = HumanTrait.MuscleFromBone(boneIndex, 2);
 
             int? skeletonIndex = null;
+            var customRangeMin = Vector3.zero;
+            var customRangeMax = Vector3.zero;
+            var customRangeCenter = Vector3.zero;
+            var useDefaultRange = true;
 
             if (humanToSkeletonLookup.TryGetValue(HumanTrait.BoneName[boneIndex], out HumanBone boneMapped))
             {
                 skeletonIndex = skeletonNameLookup[boneMapped.boneName].index;
                 skeletonNameLookup[boneMapped.boneName].value.humanBoneIndex = boneIndex;
+
+                customRangeMin = boneMapped.limit.min;
+                customRangeMax = boneMapped.limit.max;
+                customRangeCenter = boneMapped.limit.center;
+                useDefaultRange = boneMapped.limit.useDefaultValues;
             }
 
             return new HumanBoneInfo() {
@@ -307,6 +324,10 @@ public class HumanMuscleDefinition
                 xMuscleIndex = xMuscleIndex >= 0 ? xMuscleIndex : null,
                 yMuscleIndex = yMuscleIndex >= 0 ? yMuscleIndex : null,
                 zMuscleIndex = zMuscleIndex >= 0 ? zMuscleIndex : null,
+                customRangeMin = customRangeMin,
+                customRangeMax = customRangeMax,
+                customRangeCenter = customRangeCenter,
+                useDefaultRange = useDefaultRange,
 
                 skeletonIndex = skeletonIndex
             };
