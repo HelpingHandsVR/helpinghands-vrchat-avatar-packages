@@ -1,7 +1,7 @@
 {
   "name": "io.github.helpinghandsvr.helpinghands-vrchat-avatar-accessories",
   "displayName": "Helping Hands - Avatar Accessories",
-  "version": "2026.6.3",
+  "version": "2026.7.1",
   "description": "Helping Hands-related accessories for VRChat avatars",
   "author": {
     "name": "Helping Hands",
@@ -10,7 +10,8 @@
   "gitDependencies": {},
   "vpmDependencies": {},
   "legacyFolders": {
-    "Assets\\HelpingHands\\Pin": "efee49159faf9b44095eb649074167ed"
+    "Assets\\HelpingHands\\Pin": "efee49159faf9b44095eb649074167ed",
+    "Assets\\HelpingHands\\AvatarAccessories": "4b4061403fbde7548af5f18a760e9507"
   },
   "legacyFiles": {},
   "legacyPackages": [],
