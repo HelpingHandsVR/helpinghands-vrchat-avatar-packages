@@ -75,3 +75,6 @@ crashlytics-build.properties
 
 # Test stuff
 *.testartifact.*
+
+# Thry
+Thry/presets_known_materials.txt
