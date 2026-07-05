@@ -271,7 +271,7 @@ public class MecanimAvatarDebug : MonoBehaviour
 
     void OnDrawGizmosSelected()
     {
-        if (!target.avatar || !target.avatar.isHuman)
+        if (!target || target == null || !target.avatar || target.avatar == null || !target.avatar.isHuman)
         {
             return;
         }
