@@ -515,13 +515,22 @@ public class HumanMuscleDefinition
     {
         var muscleInputValues = pose.muscles;
 
+        // Hips and anything higher in the hierachy doesn't get (directly) affected by posing
+        var hipsIndex = boneInfos[(int)HumanBodyBones.Hips].skeletonIndex ?? 2;  // root (0) => armature (1) => hips (2)
+        var hips = skeletonTransforms[hipsIndex];
+        var hipsAndHigherIndices = hips.parentIndices.Append(hipsIndex);
+
         var localTransforms = Enumerable.Range(0, skeletonTransforms.Length).Select((skeletonIndex) =>
         {
             var st = skeletonTransforms[skeletonIndex];
 
             Quaternion calculatedRotation = Quaternion.identity;
 
-            if (st.humanBoneIndex != null)
+            if (hipsAndHigherIndices.Contains(skeletonIndex))
+            {
+                calculatedRotation = st.localRotation;
+            }
+            else if (st.humanBoneIndex != null)
             {
                 var boneInfo = boneInfos[st.humanBoneIndex ?? 0];
 

@@ -53,6 +53,10 @@ public class MecanimAvatarDebug : MonoBehaviour
     public float poseSkeleton_GlobalMuscleValue = 0.0f;
     [NonSerialized]
     public float[] poseSkeleton_MuscleValues = null;
+    [NonSerialized]
+    public AnimationClip poseSkeleton_AnimationClip = null;
+    [NonSerialized]
+    public int poseSkeleton_AnimationClipFrame = 0;
 
     [NonSerialized]
     public bool quaternionProbe_Gizmo = false;
@@ -786,7 +790,75 @@ public class MecanimAvatarDebug : MonoBehaviour
                     settings.poseSkeleton_Color = EditorGUILayout.ColorField("Color", settings.poseSkeleton_Color);
                     settings.poseSkeleton_BallSize = EditorGUILayout.FloatField("Ball size", settings.poseSkeleton_BallSize);
 
-                    settings.poseSkeleton_PoseMethod = EditorGUILayout.Popup(settings.poseSkeleton_PoseMethod, new string[] {"Unity Mecanim", "Reproduction"});
+                    settings.poseSkeleton_PoseMethod = EditorGUILayout.Popup("Pose method", settings.poseSkeleton_PoseMethod, new string[] {"Unity Mecanim", "Reproduction"});
+
+                    EditorGUILayout.BeginHorizontal();
+                    settings.poseSkeleton_AnimationClip = (AnimationClip)EditorGUILayout.ObjectField("Clip to copy from", settings.poseSkeleton_AnimationClip, typeof(AnimationClip), false);
+                    settings.poseSkeleton_AnimationClipFrame = EditorGUILayout.IntField(settings.poseSkeleton_AnimationClipFrame);
+                    if (GUILayout.Button("Apply"))
+                    {
+                        var serializedClip = new SerializedObject(settings.poseSkeleton_AnimationClip);
+                        var floatCurveCount = serializedClip.FindProperty("m_FloatCurves.Array.size").intValue;
+
+                        var floatCurves = Enumerable.Range(0, floatCurveCount).Select((floatCurveIndex) =>
+                        {
+                            var attribute = serializedClip.FindProperty($"m_FloatCurves.Array.data[{floatCurveIndex}].attribute").stringValue;
+
+                            var keyframeCount = serializedClip.FindProperty($"m_FloatCurves.Array.data[{floatCurveIndex}].curve.m_Curve.Array.size").intValue;
+                            var keyframes = Enumerable.Range(0, keyframeCount).Select((keyframeIndex) =>
+                            {
+                                var time = serializedClip.FindProperty($"m_FloatCurves.Array.data[{floatCurveIndex}].curve.m_Curve.Array.data[{keyframeIndex}].time").floatValue;
+                                var value = serializedClip.FindProperty($"m_FloatCurves.Array.data[{floatCurveIndex}].curve.m_Curve.Array.data[{keyframeIndex}].value").floatValue;
+
+                                return new
+                                {
+                                    time,
+                                    value
+                                };
+                            }).ToList();
+
+                            return new
+                            {
+                                attribute,
+                                keyframes
+                            };
+                        }).ToDictionary(
+                            a => a.attribute,
+                            a => a.keyframes
+                        );
+
+                        settings.poseSkeleton_MuscleValues = Enumerable.Range(0, HumanTrait.MuscleCount).Select((muscleIndex) =>
+                        {
+                            var handleName = muscleHandles[muscleIndex].name;
+
+                            if (floatCurves.TryGetValue(handleName, out var values))
+                            {
+                                // pretty silly
+                                var minKeyframe = values.Aggregate((currentMinimum, value) =>
+                                {
+                                    var thisDistance = Mathf.Abs(value.time - (settings.poseSkeleton_AnimationClipFrame / 60.0f));
+
+                                    if (currentMinimum == null)
+                                        return value;
+
+                                    var minDistance = Mathf.Abs(currentMinimum.time - (settings.poseSkeleton_AnimationClipFrame / 60.0f));
+
+                                    if (thisDistance < minDistance)
+                                        return value;
+
+                                    return currentMinimum;
+                                });
+
+                                return minKeyframe.value;
+                            } else
+                            {
+                                return 0.00f;
+                            }
+                        }).ToArray();
+                    }
+                    EditorGUILayout.EndHorizontal();
+
+                    EditorGUILayout.Separator();
 
                     EditorGUILayout.BeginHorizontal();
                     EditorGUILayout.LabelField($"<b>Global value: </b>", mixedStyle);
