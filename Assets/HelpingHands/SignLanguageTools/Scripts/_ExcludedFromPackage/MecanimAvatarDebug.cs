@@ -79,54 +79,67 @@ public class MecanimAvatarDebug : MonoBehaviour
         public bool inverse;
         public bool appliesToEnd;
         public bool appliesToParents;
+        public bool appliesToMuscles;
+        public bool appliesToNonMuscles;
         public Vector3 customEulerValue;
         public Quaternion customQuaternionValue;
 
-        public QuaternionProbeStep(QuaternionProbeRotationKind kind, bool inverse, bool appliesToEnd, bool appliesToParents)
+        public QuaternionProbeStep(QuaternionProbeRotationKind kind, bool inverse, bool appliesToEnd, bool appliesToParents, bool appliesToMuscles, bool appliesToNonMuscles)
         {
             this.kind = kind;
             this.inverse = inverse;
             this.appliesToEnd = appliesToEnd;
             this.appliesToParents = appliesToParents;
+            this.appliesToMuscles = appliesToMuscles;
+            this.appliesToNonMuscles = appliesToNonMuscles;
             this.customEulerValue = Vector3.zero;
             this.customQuaternionValue = Quaternion.identity;
         }
 
-        public QuaternionProbeStep(QuaternionProbeRotationKind kind) : this(kind, false, true, true)
+        public QuaternionProbeStep(QuaternionProbeRotationKind kind) : this(kind, false, true, true, true, true)
         {
         }
 
-        public QuaternionProbeStep(Vector3 customEulerValue, bool inverse, bool appliesToEnd, bool appliesToParents)
+        public QuaternionProbeStep(Vector3 customEulerValue, bool inverse, bool appliesToEnd, bool appliesToParents, bool appliesToMuscles, bool appliesToNonMuscles)
         {
             this.kind = QuaternionProbeRotationKind.CustomEuler;
             this.inverse = inverse;
             this.appliesToEnd = appliesToEnd;
             this.appliesToParents = appliesToParents;
+            this.appliesToMuscles = appliesToMuscles;
+            this.appliesToNonMuscles = appliesToNonMuscles;
             this.customEulerValue = customEulerValue;
             this.customQuaternionValue = Quaternion.identity;
         }
 
-        public QuaternionProbeStep(Vector3 customEulerValue) : this(customEulerValue, false, true, true)
+        public QuaternionProbeStep(Vector3 customEulerValue) : this(customEulerValue, false, true, true, true, true)
         {
         }
 
-        public QuaternionProbeStep(Quaternion customQuaternionValue, bool inverse, bool appliesToEnd, bool appliesToParents)
+        public QuaternionProbeStep(Quaternion customQuaternionValue, bool inverse, bool appliesToEnd, bool appliesToParents, bool appliesToMuscles, bool appliesToNonMuscles)
         {
             this.kind = QuaternionProbeRotationKind.CustomQuaternion;
             this.inverse = inverse;
             this.appliesToEnd = appliesToEnd;
             this.appliesToParents = appliesToParents;
+            this.appliesToMuscles = appliesToMuscles;
+            this.appliesToNonMuscles = appliesToNonMuscles;
             this.customEulerValue = Vector3.zero;
             this.customQuaternionValue = customQuaternionValue;
         }
 
-        public QuaternionProbeStep(Quaternion customQuaternionValue) : this(customQuaternionValue, false, true, true)
+        public QuaternionProbeStep(Quaternion customQuaternionValue) : this(customQuaternionValue, false, true, true, true, true)
         {
         }
 
         public Quaternion GetRotation(MecanimMuscleSkinning.HumanMuscleDefinition muscleDefinition, int skeletonIndex, float[] muscleValues)
         {
             var st = muscleDefinition.skeletonTransforms[skeletonIndex];
+
+            var isMuscle = st.humanBoneIndex != null;
+
+            if ((!appliesToMuscles && isMuscle) || (!appliesToNonMuscles && !isMuscle))
+                return Quaternion.identity;
 
             Quaternion stepQuaternion = Quaternion.identity;
 
@@ -229,6 +242,10 @@ public class MecanimAvatarDebug : MonoBehaviour
     public int quaternionProbe_Index = 0;
     [NonSerialized]
     public bool quaternionProbe_IgnoreAbsoluteParent = false;
+    [NonSerialized]
+    public bool quaternionProbe_ShiftByMass = false;
+    [NonSerialized]
+    public bool quaternionProbe_RotateByAlignment = false;
 
 
 #if UNITY_EDITOR
@@ -278,6 +295,8 @@ public class MecanimAvatarDebug : MonoBehaviour
 
         var oldGizmo_Color = Gizmos.color;
         var oldGizmo_Matrix = Gizmos.matrix;
+        var oldHandle_Color = Handles.color;
+        var oldHandle_Matrix = Handles.matrix;
 
         var avatar = target.avatar;
         var muscleDefinition = new MecanimMuscleSkinning.HumanMuscleDefinition(avatar);
@@ -299,9 +318,11 @@ public class MecanimAvatarDebug : MonoBehaviour
                     );
                 }
 
-                Gizmos.DrawSphere(st.localToWorldMatrix.MultiplyPoint(Vector3.zero) + target.transform.position, lineSkeleton_BallSize);
+                Gizmos.DrawSphere((target.transform.localToWorldMatrix * st.localToWorldMatrix).MultiplyPoint(Vector3.zero), lineSkeleton_BallSize);
             }
         }
+
+        (MecanimMuscleSkinning.HumanMuscleDefinition.HumanSkeletonTransform skeletonTransform, Vector3 localPosedPosition, Quaternion localPosedRotation, Matrix4x4 posedLocalToWorldMatrix)[] maybePosed = null;
 
         if (poseSkeleton_Gizmo)
         {
@@ -313,6 +334,7 @@ public class MecanimAvatarDebug : MonoBehaviour
             };
 
             var posed = muscleDefinition.ApplyPose(avatar, pose);
+            maybePosed = posed;
 
             foreach (var tuple in posed)
             {
@@ -330,7 +352,7 @@ public class MecanimAvatarDebug : MonoBehaviour
                     );
                 }
 
-                Gizmos.DrawSphere(tuple.posedLocalToWorldMatrix.MultiplyPoint(Vector3.zero) + target.transform.position, poseSkeleton_BallSize);
+                Gizmos.DrawSphere((target.transform.localToWorldMatrix * tuple.posedLocalToWorldMatrix).MultiplyPoint(Vector3.zero), poseSkeleton_BallSize);
             }
         }
 
@@ -405,32 +427,141 @@ public class MecanimAvatarDebug : MonoBehaviour
                 if (matrixStack.Count > 1)
                 {
                     var positionOfParent = (target.transform.localToWorldMatrix * matrixStack[1]).MultiplyPoint(Vector3.zero);
-
-                    if (quaternionProbe_SkeletonGizmo)
-                        Gizmos.DrawLine(
-                            positionOfParent,
-                            positionOfThis
-                        );
                 }
-
-                if (quaternionProbe_SkeletonGizmo)
-                    Gizmos.DrawSphere(matrixStack[0].MultiplyPoint(Vector3.zero) + target.transform.position, quaternionProbe_SkeletonBallSize);
 
                 return matrixStack[0];
             }).ToList();
 
-            Gizmos.matrix = transform.localToWorldMatrix * worldMatrices[quaternionProbe_Index];
+            if (quaternionProbe_RotateByAlignment)
+            {
+                var leftHip = worldMatrices[muscleDefinition.boneInfos[(int)HumanBodyBones.LeftUpperLeg].skeletonIndex ?? 0].MultiplyPoint(Vector3.zero);
+                var rightHip = worldMatrices[muscleDefinition.boneInfos[(int)HumanBodyBones.RightUpperLeg].skeletonIndex ?? 0].MultiplyPoint(Vector3.zero);
+                var leftShoulder = worldMatrices[muscleDefinition.boneInfos[(int)HumanBodyBones.LeftUpperArm].skeletonIndex ?? 0].MultiplyPoint(Vector3.zero);
+                var rightShoulder = worldMatrices[muscleDefinition.boneInfos[(int)HumanBodyBones.RightUpperArm].skeletonIndex ?? 0].MultiplyPoint(Vector3.zero);
 
-            Gizmos.color = Color.red;
-            Gizmos.DrawLine(Vector3.zero, Vector3.right * 0.1f);
-            Gizmos.color = Color.green;
-            Gizmos.DrawLine(Vector3.zero, Vector3.up * 0.1f);
-            Gizmos.color = Color.blue;
-            Gizmos.DrawLine(Vector3.zero, Vector3.forward * 0.1f);
+                var middleHip = (leftHip + rightHip) * 0.5f;
+                var middleShoulder = (leftShoulder + rightShoulder) * 0.5f;
+
+                var upVector = (middleShoulder - middleHip).normalized;
+
+                var acrossHip = rightHip - leftHip;
+                var acrossShoulder = rightShoulder - leftShoulder;
+
+                var rightVector = (acrossHip + acrossShoulder).normalized;
+
+                // Get z
+                var forwardVector = Vector3.Cross(rightVector, upVector);
+
+                // Orthogonalize
+                var newRightVector = rightVector; //Vector3.Cross(upVector, forwardVector);
+                var newUpVector = upVector; //Vector3.Cross(forwardVector, rightVector);
+                var newForwardVector = forwardVector;
+
+                Vector3.OrthoNormalize(ref newRightVector, ref newUpVector, ref newForwardVector);
+
+                var alignmentMatrix = new Matrix4x4(
+                    new Vector4(newRightVector.x, newRightVector.y, newRightVector.z, 0.0f),
+                    new Vector4(newUpVector.x, newUpVector.y, newUpVector.z, 0.0f),
+                    new Vector4(newForwardVector.x, newForwardVector.y, newForwardVector.z, 0.0f),
+                    new Vector4(0.0f, 0.0f, 0.0f, 1.0f)
+                );
+                var correctionMatrix = alignmentMatrix.inverse;
+
+                for (int i = 0; i < worldMatrices.Count; ++i)
+                {
+                    worldMatrices[i] = correctionMatrix * worldMatrices[i];
+                }
+            }
+
+            if (quaternionProbe_ShiftByMass)
+            {
+                Vector3 shiftAmount = Vector3.zero;
+
+                for (int i = 0; i < muscleDefinition.skeletonTransforms.Length; ++i)
+                {
+                    var st = muscleDefinition.skeletonTransforms[i];
+
+                    if (st.humanBoneIndex == null)
+                        continue;
+
+                    shiftAmount += muscleDefinition.boneInfos[st.humanBoneIndex ?? 0].mass * worldMatrices[i].GetPosition();
+                }
+
+                for (int i = 0; i < worldMatrices.Count; ++i)
+                {
+                    worldMatrices[i] = Matrix4x4.Translate(-shiftAmount) * worldMatrices[i];
+                }
+            }
+
+            if (quaternionProbe_SkeletonGizmo)
+            {
+                Gizmos.color = quaternionProbe_SkeletonColor;
+
+                for (int i = 0; i < muscleDefinition.skeletonTransforms.Length; ++i)
+                {
+                    var st = muscleDefinition.skeletonTransforms[i];
+
+                    var positionOfThis = (target.transform.localToWorldMatrix * worldMatrices[i]).MultiplyPoint(Vector3.zero);
+
+                    if (st.parentIndex != null)
+                    {
+                        var positionOfParent = (target.transform.localToWorldMatrix * worldMatrices[st.parentIndex ?? 0]).MultiplyPoint(Vector3.zero);
+
+                        Gizmos.DrawLine(
+                            positionOfParent,
+                            positionOfThis
+                        );
+                    }
+
+                    Gizmos.DrawSphere((target.transform.localToWorldMatrix * worldMatrices[i]).MultiplyPoint(Vector3.zero), quaternionProbe_SkeletonBallSize);
+                }
+            }
+
+            Handles.matrix = transform.localToWorldMatrix * worldMatrices[quaternionProbe_Index];
+            Handles.RotationHandle(Quaternion.identity, Vector3.zero);
+
+            GUIStyle qStyle = new()
+            {
+                richText = true
+            };
+            qStyle.normal.textColor = quaternionProbe_SkeletonColor;
+            var qMat = worldMatrices[quaternionProbe_Index];
+            var qPos = qMat.GetPosition();
+            var qRot = qMat.rotation.eulerAngles;
+            var qScale = qMat.lossyScale;
+            Handles.Label(
+                Vector3.zero,
+                $"<b>POS:</b> ({qPos.x:0.00000}, {qPos.y:0.00000}, {qPos.z:0.00000})\n<b>ROT:</b> ({qRot.x:0.00000}, {qRot.y:0.00000}, {qRot.z:0.00000})\n<b>SCL:</b> ({qScale.x:0.00000}, {qScale.y:0.00000}, {qScale.z:0.00000})",
+                qStyle
+            );
+
+            if (maybePosed != null)
+            {
+                Handles.matrix = transform.localToWorldMatrix * maybePosed[quaternionProbe_Index].posedLocalToWorldMatrix;
+                Handles.RotationHandle(Quaternion.identity, Vector3.zero);
+
+                GUIStyle pStyle = new()
+                {
+                    richText = true
+                };
+                pStyle.normal.textColor = poseSkeleton_Color;
+                var pMat = maybePosed[quaternionProbe_Index].posedLocalToWorldMatrix;
+                var pPos = pMat.GetPosition();
+                var pRot = pMat.rotation.eulerAngles;
+                var pScale = pMat.lossyScale;
+                Handles.Label(
+                    Vector3.zero,
+                    $"<b>POS:</b> ({pPos.x:0.00000}, {pPos.y:0.00000}, {pPos.z:0.00000})\n<b>ROT:</b> ({pRot.x:0.00000}, {pRot.y:0.00000}, {pRot.z:0.00000})\n<b>SCL:</b> ({pScale.x:0.00000}, {pScale.y:0.00000}, {pScale.z:0.00000})",
+                    pStyle
+                );
+
+            }
         }
 
         Gizmos.color = oldGizmo_Color;
         Gizmos.matrix = oldGizmo_Matrix;
+        Handles.color = oldHandle_Color;
+        Handles.matrix = oldHandle_Matrix;
     }
 
 #if UNITY_EDITOR
@@ -609,6 +740,7 @@ public class MecanimAvatarDebug : MonoBehaviour
 
                             EditorGUILayout.LabelField($"<b>Human bone bones:</b>  {hb.humanBodyBones}", mixedStyle);
                             EditorGUILayout.LabelField($"<b>Trait name:</b>  {hb.traitBoneName}", mixedStyle);
+                            EditorGUILayout.LabelField($"<b>Mass:</b>  {hb.mass:0.00000}", mixedStyle);
                             EditorGUILayout.LabelField($"<b>Axis length:</b>  {hb.axisLength}", mixedStyle);
                             EditorGUILayout.LabelField($"<b>Pre rotation:</b>  {hb.preRotation}", mixedStyle);
                             EditorGUILayout.LabelField($"<b>Post rotation:</b>  {hb.postRotation}", mixedStyle);
@@ -759,6 +891,14 @@ public class MecanimAvatarDebug : MonoBehaviour
                             "Applies to parents", settings.quaternionProbe_RotationSteps[i].appliesToParents
                         );
 
+                        settings.quaternionProbe_RotationSteps[i].appliesToMuscles = EditorGUILayout.Toggle(
+                            "Applies to muscle bones", settings.quaternionProbe_RotationSteps[i].appliesToMuscles
+                        );
+
+                        settings.quaternionProbe_RotationSteps[i].appliesToNonMuscles = EditorGUILayout.Toggle(
+                            "Applies to non-muscle bones", settings.quaternionProbe_RotationSteps[i].appliesToNonMuscles
+                        );
+
                         EditorGUILayout.BeginHorizontal();
 
                         if (GUILayout.Button("↑") && i > 0)
@@ -808,30 +948,43 @@ public class MecanimAvatarDebug : MonoBehaviour
                             new QuaternionProbeStep(QuaternionProbeRotationKind.RigRotation)
                         };
                         settings.quaternionProbe_IgnoreAbsoluteParent = false;
+                        settings.quaternionProbe_RotateByAlignment = false;
+                        settings.quaternionProbe_ShiftByMass = false;
                     }
 
                     if (GUILayout.Button("Set pose default"))
                     {
                         settings.quaternionProbe_RotationSteps = new()
                         {
-                            new QuaternionProbeStep(QuaternionProbeRotationKind.PreRotation, false, true, true),
-                            new QuaternionProbeStep(QuaternionProbeRotationKind.PostRotation, true, true, true)
+                            //new QuaternionProbeStep(QuaternionProbeRotationKind.RigRotation, false, true, true, false, true),
+                            new QuaternionProbeStep(QuaternionProbeRotationKind.PreRotation, false, true, true, true, false),
+                            new QuaternionProbeStep(QuaternionProbeRotationKind.PostRotation, true, true, true, true, false)
                         };
                         settings.quaternionProbe_IgnoreAbsoluteParent = true;
+                        settings.quaternionProbe_RotateByAlignment = true;
+                        settings.quaternionProbe_ShiftByMass = true;
                     }
 
                     if (GUILayout.Button("Set pose matching pose skeleton"))
                     {
                         settings.quaternionProbe_RotationSteps = new()
                         {
-                            new QuaternionProbeStep(QuaternionProbeRotationKind.PreRotation, false, true, true),
-                            new QuaternionProbeStep(QuaternionProbeRotationKind.CopiedFromPoseSkeleton, false, true, true),
-                            new QuaternionProbeStep(QuaternionProbeRotationKind.PostRotation, true, true, true)
+                            //new QuaternionProbeStep(QuaternionProbeRotationKind.RigRotation, false, true, true, false, true),
+                            new QuaternionProbeStep(QuaternionProbeRotationKind.PreRotation, false, true, true, true, false),
+                            new QuaternionProbeStep(QuaternionProbeRotationKind.CopiedFromPoseSkeleton, false, true, true, true, false),
+                            new QuaternionProbeStep(QuaternionProbeRotationKind.PostRotation, true, true, true, true, false)
                         };
                         settings.quaternionProbe_IgnoreAbsoluteParent = true;
+                        settings.quaternionProbe_RotateByAlignment = true;
+                        settings.quaternionProbe_ShiftByMass = true;
                     }
 
                     EditorGUILayout.EndHorizontal();
+
+                    settings.quaternionProbe_ShiftByMass = EditorGUILayout.Toggle("Shift position by mass", settings.quaternionProbe_ShiftByMass);
+                    settings.quaternionProbe_RotateByAlignment = EditorGUILayout.Toggle("Rotate by alignment", settings.quaternionProbe_RotateByAlignment);
+
+                    EditorGUILayout.Separator();
 
                     settings.quaternionProbe_Index = EditorGUILayout.Popup(
                         "Skeleton transform",

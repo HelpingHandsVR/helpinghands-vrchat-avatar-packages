@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.Collections;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Animations;
 
@@ -40,6 +41,7 @@ public class HumanMuscleDefinition
         // Intrinsic
         public HumanBodyBones humanBodyBones;
         public string traitBoneName;
+        public float mass;
         public float axisLength;
         public Quaternion preRotation;
         public Quaternion postRotation;
@@ -178,6 +180,8 @@ public class HumanMuscleDefinition
             throw new InvalidOperationException("Human Muscle Definition can't be created from Avatar that is not humanoid");
 
         HumanDescription humanDescription = avatar.humanDescription;
+        // Needed to access underlying attributes
+        SerializedObject serializedAvatar = new(avatar);
 
         // Reflection stuff
         var SkeletonBone_parentName_Field = typeof(SkeletonBone).GetField("parentName", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
@@ -279,6 +283,13 @@ public class HumanMuscleDefinition
         );
         var humanToSkeletonLookup = humanDescription.human.ToDictionary((b) => b.humanName);
 
+        // Find bone masses
+        int boneMassCount = serializedAvatar.FindProperty("m_Avatar.m_Human.data.m_HumanBoneMass.Array.size").intValue;
+        float[] boneMasses = Enumerable.Range(0, boneMassCount).Select((i) =>
+        {
+            return serializedAvatar.FindProperty($"m_Avatar.m_Human.data.m_HumanBoneMass.Array.data[{i}]").floatValue;
+        }).ToArray();
+
         // Assign bone information
         boneInfos = Enumerable.Range(0, HumanTrait.BoneCount).Select((boneIndex) =>
         {
@@ -308,6 +319,7 @@ public class HumanMuscleDefinition
             return new HumanBoneInfo() {
                 humanBodyBones = humanBodyBones,
                 traitBoneName = HumanTrait.BoneName[boneIndex],
+                mass = boneIndex < boneMasses.Length ? boneMasses[boneIndex] : 0.0f,
                 axisLength = (float)Avatar_GetAxisLength_Method.Invoke(avatar, new object[]{ humanBodyBones }),
                 preRotation = (Quaternion)Avatar_GetPreRotation_Method.Invoke(avatar, new object[]{ humanBodyBones }),
                 postRotation = (Quaternion)Avatar_GetPostRotation_Method.Invoke(avatar, new object[]{ humanBodyBones }),
