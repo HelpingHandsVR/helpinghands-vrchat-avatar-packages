@@ -94,6 +94,15 @@ public class HumanMuscleDefinition
             }
         }
     }
+
+    [Serializable]
+    public class PosedHumanSkeletonTransform
+    {
+        public HumanSkeletonTransform skeletonTransform;
+        public Vector3 posedLocalPosition;
+        public Quaternion posedLocalRotation;
+        public Matrix4x4 posedLocalToWorldMatrix;
+    }
 #endregion
 
 #region Static convenience fields and methods
@@ -425,7 +434,13 @@ public class HumanMuscleDefinition
         return (jointPaths, avatarPose);
     }
 
-    public (HumanSkeletonTransform skeletonTransform, Vector3 localPosedPosition, Quaternion localPosedRotation, Matrix4x4 posedLocalToWorldMatrix)[] ApplyPose(Avatar avatar, HumanPose pose)
+    /// <summary>
+    /// Apply a pose using Unity's internal Mecanim posing engine.
+    /// </summary>
+    /// <param name="avatar">The avatar to get posing information from</param>
+    /// <param name="pose">The pose to apply</param>
+    /// <returns>An array of the produced pose transform data, indexed alike to `skeletonTransforms`.</returns>
+    public PosedHumanSkeletonTransform[] ApplyPoseMecanim(Avatar avatar, HumanPose pose)
     {
         var (jointPaths, avatarPose) = CreatePoseArrays();
 
@@ -437,45 +452,214 @@ public class HumanMuscleDefinition
 
         var poseArray = Enumerable.Range(0, jointPaths.Length).Select((index) =>
         {
-            Vector3 localPosedPosition = new(
+            Vector3 posedLocalPosition = new(
                 avatarPose[7 * index], avatarPose[7 * index + 1], avatarPose[7 * index + 2]
             );
-            Quaternion localPosedRotation = new(
+            Quaternion posedLocalRotation = new(
                 avatarPose[7 * index + 3], avatarPose[7 * index + 4], avatarPose[7 * index + 5], avatarPose[7 * index + 6]
             );
 
-            return (
-                skeletonTransforms[index],
-                localPosedPosition,
-                localPosedRotation,
-                Matrix4x4.identity
-            );
+            return new PosedHumanSkeletonTransform() {
+                skeletonTransform = skeletonTransforms[index],
+                posedLocalPosition = posedLocalPosition,
+                posedLocalRotation = posedLocalRotation,
+                posedLocalToWorldMatrix = Matrix4x4.identity
+            };
         }).ToArray();
 
         for (int index = 0; index < poseArray.Length; ++index)
         {
             var localToWorldMatrix = Matrix4x4.TRS(
-                poseArray[index].localPosedPosition,
-                poseArray[index].localPosedRotation,
+                poseArray[index].posedLocalPosition,
+                poseArray[index].posedLocalRotation,
                 skeletonTransforms[index].localScale
             );
 
             foreach (int parent in skeletonTransforms[index].parentIndices)
             {
                 localToWorldMatrix = Matrix4x4.TRS(
-                    poseArray[parent].localPosedPosition,
-                    poseArray[parent].localPosedRotation,
+                    poseArray[parent].posedLocalPosition,
+                    poseArray[parent].posedLocalRotation,
                     skeletonTransforms[parent].localScale
                 ) * localToWorldMatrix;
             }
 
-            poseArray[index].identity = localToWorldMatrix;
+            poseArray[index].posedLocalToWorldMatrix = localToWorldMatrix;
         }
 
         avatarPose.Dispose();
         humanPoseHandler.Dispose();
 
         return poseArray;
+    }
+
+    class TemporaryTransform
+    {
+        public Vector3 localPosition;
+        public Quaternion localRotation;
+        public Vector3 localScale;
+        public Matrix4x4 localMatrix;
+    }
+
+    /// <summary>
+    /// Attempt to apply a pose using a best-effort replication of Unity's mecanim engine.
+    ///
+    /// This engine has known inaccuracies but it gets the general picture down, and its
+    /// implementation is useful for figuring out some pose-related information like rough
+    /// IK.
+    /// </summary>
+    /// <param name="avatar">The avatar to get posing information from</param>
+    /// <param name="pose">The pose to apply</param>
+    /// <returns>An array of the produced pose transform data, indexed alike to `skeletonTransforms`.</returns>
+    public PosedHumanSkeletonTransform[] ApplyPoseReplication(Avatar avatar, HumanPose pose)
+    {
+        var muscleInputValues = pose.muscles;
+
+        var localTransforms = Enumerable.Range(0, skeletonTransforms.Length).Select((skeletonIndex) =>
+        {
+            var st = skeletonTransforms[skeletonIndex];
+
+            Quaternion calculatedRotation = Quaternion.identity;
+
+            if (st.humanBoneIndex != null)
+            {
+                var boneInfo = boneInfos[st.humanBoneIndex ?? 0];
+
+                var muscleIndices = new int?[]
+                {
+                    boneInfo.xMuscleIndex,
+                    boneInfo.yMuscleIndex,
+                    boneInfo.zMuscleIndex
+                };
+
+                var musclePoseRotations = muscleIndices.Select((muscleIndex, axisIndex) =>
+                {
+                    if (muscleIndex != null)
+                    {
+                        var muscleInfo = muscleInfos[muscleIndex ?? 0];
+                        var muscleValue = muscleInputValues[muscleIndex ?? 0];
+
+                        var min = boneInfo.useDefaultRange ? muscleInfo.defaultRangeMin : boneInfo.customRangeMin[axisIndex];
+                        var max = boneInfo.useDefaultRange ? muscleInfo.defaultRangeMax : boneInfo.customRangeMax[axisIndex];
+                        var center = boneInfo.useDefaultRange ? 0.0f : boneInfo.customRangeCenter[axisIndex];
+                        return center + boneInfo.limitSign[axisIndex] * (muscleValue >= 0.0f ? (max - center) * muscleValue : (center - min) * muscleValue);
+                    } else
+                    {
+                        return 0.0f;
+                    }
+                }).ToArray();
+
+                calculatedRotation = (
+                    boneInfo.preRotation
+                    * Quaternion.Euler(musclePoseRotations[0], musclePoseRotations[1], musclePoseRotations[2])
+                    * Quaternion.Inverse(boneInfo.postRotation)
+                );
+            }
+
+            return new TemporaryTransform() {
+                localPosition = st.localPosition,
+                localRotation = calculatedRotation,
+                localMatrix = Matrix4x4.TRS(
+                    st.localPosition,
+                    calculatedRotation,
+                    st.localScale
+                )
+            };
+        }).ToList();
+
+        var worldMatrices = Enumerable.Range(0, skeletonTransforms.Length).Select((index) =>
+        {
+            List<int> hierarchyIndices = new() { index };
+            hierarchyIndices.AddRange(skeletonTransforms[index].parentIndices);
+
+            var matrixStack = hierarchyIndices.Select(
+                (matrixIndex) => localTransforms[matrixIndex].localMatrix
+            ).ToList();
+
+            // Accumulate matrices backwards
+            for (int i = 1; i < matrixStack.Count; ++i)
+            {
+                matrixStack[^(i + 1)] = matrixStack[^i] * matrixStack[^(i + 1)];
+            }
+
+            return matrixStack[0];
+        }).ToList();
+
+        // Rotation alignment
+        var leftHip = worldMatrices[boneInfos[(int)HumanBodyBones.LeftUpperLeg].skeletonIndex ?? 0].MultiplyPoint(Vector3.zero);
+        var rightHip = worldMatrices[boneInfos[(int)HumanBodyBones.RightUpperLeg].skeletonIndex ?? 0].MultiplyPoint(Vector3.zero);
+        var leftShoulder = worldMatrices[boneInfos[(int)HumanBodyBones.LeftUpperArm].skeletonIndex ?? 0].MultiplyPoint(Vector3.zero);
+        var rightShoulder = worldMatrices[boneInfos[(int)HumanBodyBones.RightUpperArm].skeletonIndex ?? 0].MultiplyPoint(Vector3.zero);
+
+        var middleHip = (leftHip + rightHip) * 0.5f;
+        var middleShoulder = (leftShoulder + rightShoulder) * 0.5f;
+
+        var upVector = (middleShoulder - middleHip).normalized;
+
+        var acrossHip = rightHip - leftHip;
+        var acrossShoulder = rightShoulder - leftShoulder;
+
+        var rightVector = (acrossHip + acrossShoulder).normalized;
+
+        // Get z
+        var forwardVector = Vector3.Cross(rightVector, upVector);
+
+        // Orthogonalize
+        var newRightVector = rightVector; //Vector3.Cross(upVector, forwardVector);
+        var newUpVector = upVector; //Vector3.Cross(forwardVector, rightVector);
+        var newForwardVector = forwardVector;
+
+        Vector3.OrthoNormalize(ref newRightVector, ref newUpVector, ref newForwardVector);
+
+        var alignmentMatrix = new Matrix4x4(
+            new Vector4(newRightVector.x, newRightVector.y, newRightVector.z, 0.0f),
+            new Vector4(newUpVector.x, newUpVector.y, newUpVector.z, 0.0f),
+            new Vector4(newForwardVector.x, newForwardVector.y, newForwardVector.z, 0.0f),
+            new Vector4(0.0f, 0.0f, 0.0f, 1.0f)
+        );
+        var correctionMatrix = alignmentMatrix.inverse;
+
+        for (int i = 0; i < worldMatrices.Count; ++i)
+        {
+            worldMatrices[i] = correctionMatrix * worldMatrices[i];
+        }
+
+        // Apply correction to root as well for local consistency
+        localTransforms[0].localRotation = correctionMatrix.rotation * localTransforms[0].localRotation;
+        localTransforms[0].localMatrix = correctionMatrix * localTransforms[0].localMatrix;
+
+        // Positional shift
+        Vector3 shiftAmount = Vector3.zero;
+
+        for (int i = 0; i < skeletonTransforms.Length; ++i)
+        {
+            var st = skeletonTransforms[i];
+
+            if (st.humanBoneIndex == null)
+                continue;
+
+            shiftAmount += boneInfos[st.humanBoneIndex ?? 0].mass * worldMatrices[i].GetPosition();
+        }
+
+        for (int i = 0; i < worldMatrices.Count; ++i)
+        {
+            worldMatrices[i] = Matrix4x4.Translate(-shiftAmount) * worldMatrices[i];
+        }
+
+        // Apply correction to root as well for local consistency
+        localTransforms[0].localPosition -= shiftAmount;
+        localTransforms[0].localMatrix = Matrix4x4.Translate(-shiftAmount) * localTransforms[0].localMatrix;
+
+        return Enumerable.Range(0, skeletonTransforms.Length).Select((skeletonIndex) =>
+        {
+            return new PosedHumanSkeletonTransform()
+            {
+                skeletonTransform = skeletonTransforms[skeletonIndex],
+                posedLocalPosition = localTransforms[skeletonIndex].localPosition,
+                posedLocalRotation = localTransforms[skeletonIndex].localRotation,
+                posedLocalToWorldMatrix = worldMatrices[skeletonIndex]
+            };
+        }).ToArray();
     }
 #endregion
 

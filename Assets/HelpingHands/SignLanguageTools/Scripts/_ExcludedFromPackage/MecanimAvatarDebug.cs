@@ -48,6 +48,8 @@ public class MecanimAvatarDebug : MonoBehaviour
     [NonSerialized]
     public float poseSkeleton_BallSize = 0.0025f;
     [NonSerialized]
+    public int poseSkeleton_PoseMethod = 0;
+    [NonSerialized]
     public float poseSkeleton_GlobalMuscleValue = 0.0f;
     [NonSerialized]
     public float[] poseSkeleton_MuscleValues = null;
@@ -322,20 +324,21 @@ public class MecanimAvatarDebug : MonoBehaviour
             }
         }
 
-        (MecanimMuscleSkinning.HumanMuscleDefinition.HumanSkeletonTransform skeletonTransform, Vector3 localPosedPosition, Quaternion localPosedRotation, Matrix4x4 posedLocalToWorldMatrix)[] maybePosed = null;
+        HumanPose pose = new()
+        {
+            muscles = poseSkeleton_MuscleValues,
+            bodyPosition = Vector3.zero,
+            bodyRotation = Quaternion.identity,
+        };
+
+        MecanimMuscleSkinning.HumanMuscleDefinition.PosedHumanSkeletonTransform[] posed = poseSkeleton_PoseMethod switch
+        {
+            1 => muscleDefinition.ApplyPoseReplication(avatar, pose),
+            _ => muscleDefinition.ApplyPoseMecanim(avatar, pose),
+        };
 
         if (poseSkeleton_Gizmo)
         {
-            HumanPose pose = new()
-            {
-                muscles = poseSkeleton_MuscleValues,
-                bodyPosition = Vector3.zero,
-                bodyRotation = Quaternion.identity,
-            };
-
-            var posed = muscleDefinition.ApplyPose(avatar, pose);
-            maybePosed = posed;
-
             foreach (var tuple in posed)
             {
                 Gizmos.color = poseSkeleton_Color;
@@ -420,13 +423,6 @@ public class MecanimAvatarDebug : MonoBehaviour
                 for (int i = 1; i < matrixStack.Count; ++i)
                 {
                     matrixStack[matrixStack.Count - 1 - i] = matrixStack[matrixStack.Count - i] * matrixStack[matrixStack.Count - 1 - i];
-                }
-
-                var positionOfThis = (target.transform.localToWorldMatrix * matrixStack[0]).MultiplyPoint(Vector3.zero);
-
-                if (matrixStack.Count > 1)
-                {
-                    var positionOfParent = (target.transform.localToWorldMatrix * matrixStack[1]).MultiplyPoint(Vector3.zero);
                 }
 
                 return matrixStack[0];
@@ -535,9 +531,9 @@ public class MecanimAvatarDebug : MonoBehaviour
                 qStyle
             );
 
-            if (maybePosed != null)
+            if (poseSkeleton_Gizmo)
             {
-                Handles.matrix = transform.localToWorldMatrix * maybePosed[quaternionProbe_Index].posedLocalToWorldMatrix;
+                Handles.matrix = transform.localToWorldMatrix * posed[quaternionProbe_Index].posedLocalToWorldMatrix;
                 Handles.RotationHandle(Quaternion.identity, Vector3.zero);
 
                 GUIStyle pStyle = new()
@@ -545,7 +541,7 @@ public class MecanimAvatarDebug : MonoBehaviour
                     richText = true
                 };
                 pStyle.normal.textColor = poseSkeleton_Color;
-                var pMat = maybePosed[quaternionProbe_Index].posedLocalToWorldMatrix;
+                var pMat = posed[quaternionProbe_Index].posedLocalToWorldMatrix;
                 var pPos = pMat.GetPosition();
                 var pRot = pMat.rotation.eulerAngles;
                 var pScale = pMat.lossyScale;
@@ -804,6 +800,8 @@ public class MecanimAvatarDebug : MonoBehaviour
                     settings.poseSkeleton_Scroll = EditorGUILayout.BeginScrollView(settings.poseSkeleton_Scroll, GUILayout.Height(400.0f));
                     settings.poseSkeleton_Color = EditorGUILayout.ColorField("Color", settings.poseSkeleton_Color);
                     settings.poseSkeleton_BallSize = EditorGUILayout.FloatField("Ball size", settings.poseSkeleton_BallSize);
+
+                    settings.poseSkeleton_PoseMethod = EditorGUILayout.Popup(settings.poseSkeleton_PoseMethod, new string[] {"Unity Mecanim", "Reproduction"});
 
                     EditorGUILayout.BeginHorizontal();
                     EditorGUILayout.LabelField($"<b>Global value: </b>", mixedStyle);
