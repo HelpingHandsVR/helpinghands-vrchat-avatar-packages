@@ -185,46 +185,31 @@ public class MecanimAvatarDebug : MonoBehaviour
                     {
                         var boneInfo = muscleDefinition.boneInfos[st.humanBoneIndex ?? 0];
 
-                        float xValue = 0.0f;
-                        float yValue = 0.0f;
-                        float zValue = 0.0f;
-
-                        if (boneInfo.xMuscleIndex != null && muscleValues != null && muscleValues.Length > boneInfo.xMuscleIndex)
+                        var muscleIndices = new int?[]
                         {
-                            var muscleInfo = muscleDefinition.muscleInfos[boneInfo.xMuscleIndex ?? 0];
-                            var muscleValue = muscleValues[boneInfo.xMuscleIndex ?? 0];
+                            boneInfo.xMuscleIndex,
+                            boneInfo.yMuscleIndex,
+                            boneInfo.zMuscleIndex
+                        };
 
-                            var min = boneInfo.useDefaultRange ? muscleInfo.defaultRangeMin : boneInfo.customRangeMin.x;
-                            var max = boneInfo.useDefaultRange ? muscleInfo.defaultRangeMax : boneInfo.customRangeMax.x;
-                            var center = boneInfo.useDefaultRange ? 0.0f : boneInfo.customRangeCenter.x;
-                            xValue = center + boneInfo.limitSign.x * (muscleValue >= 0.0f ? (max - center) * muscleValue : (center - min) * muscleValue);
-                        }
-
-                        if (boneInfo.yMuscleIndex != null && muscleValues != null && muscleValues.Length > boneInfo.yMuscleIndex)
+                        var musclePoseRotations = muscleIndices.Select((muscleIndex, axisIndex) =>
                         {
-                            var muscleInfo = muscleDefinition.muscleInfos[boneInfo.yMuscleIndex ?? 0];
-                            var muscleValue = muscleValues[boneInfo.yMuscleIndex ?? 0];
+                            if (muscleIndex != null)
+                            {
+                                var muscleInfo = muscleDefinition.muscleInfos[muscleIndex ?? 0];
+                                var muscleValue = muscleValues[muscleIndex ?? 0];
 
-                            var min = boneInfo.useDefaultRange ? muscleInfo.defaultRangeMin : boneInfo.customRangeMin.x;
-                            var max = boneInfo.useDefaultRange ? muscleInfo.defaultRangeMax : boneInfo.customRangeMax.x;
-                            var center = boneInfo.useDefaultRange ? 0.0f : boneInfo.customRangeCenter.x;
-                            yValue = center + boneInfo.limitSign.y * (muscleValue >= 0.0f ? (max - center) * muscleValue : (center - min) * muscleValue);
-                        }
+                                var min = boneInfo.useDefaultRange ? muscleInfo.defaultRangeMin : boneInfo.customRangeMin[axisIndex];
+                                var max = boneInfo.useDefaultRange ? muscleInfo.defaultRangeMax : boneInfo.customRangeMax[axisIndex];
+                                var center = boneInfo.useDefaultRange ? 0.0f : boneInfo.customRangeCenter[axisIndex];
+                                return center + boneInfo.limitSign[axisIndex] * (muscleValue >= 0.0f ? (max - center) * muscleValue : (center - min) * muscleValue);
+                            } else
+                            {
+                                return 0.0f;
+                            }
+                        }).ToArray();
 
-                        if (boneInfo.zMuscleIndex != null && muscleValues != null && muscleValues.Length > boneInfo.zMuscleIndex)
-                        {
-                            var muscleInfo = muscleDefinition.muscleInfos[boneInfo.zMuscleIndex ?? 0];
-                            var muscleValue = muscleValues[boneInfo.zMuscleIndex ?? 0];
-
-                            var min = boneInfo.useDefaultRange ? muscleInfo.defaultRangeMin : boneInfo.customRangeMin.x;
-                            var max = boneInfo.useDefaultRange ? muscleInfo.defaultRangeMax : boneInfo.customRangeMax.x;
-                            var center = boneInfo.useDefaultRange ? 0.0f : boneInfo.customRangeCenter.x;
-                            zValue = center + boneInfo.limitSign.z * (muscleValue >= 0.0f ? (max - center) * muscleValue : (center - min) * muscleValue);
-                        }
-
-                        stepQuaternion = Quaternion.Euler(
-                            xValue, yValue, zValue
-                        );
+                        stepQuaternion = Quaternion.Euler(musclePoseRotations[0], musclePoseRotations[1], musclePoseRotations[2]);
                     }
                     break;
                 default:
